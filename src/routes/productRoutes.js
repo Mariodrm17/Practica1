@@ -7,40 +7,103 @@ const router = express.Router();
 // Obtener todos los productos (público)
 router.get('/', async (req, res) => {
   try {
-    const products = await Product.find().populate('createdBy', 'username');
-    res.json(products);
+    const { league, category, inStock } = req.query;
+    
+    let filter = { isActive: true };
+    
+    // Filtros opcionales
+    if (league && league !== 'all') {
+      filter.league = league;
+    }
+    
+    if (category && category !== 'all') {
+      filter.category = category;
+    }
+    
+    if (inStock === 'true') {
+      filter.stock = { $gt: 0 };
+    }
+    
+    const products = await Product.find(filter)
+      .populate('createdBy', 'username')
+      .sort({ createdAt: -1 });
+    
+    res.json({
+      success: true,
+      count: products.length,
+      products: products
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error obteniendo productos' });
+    console.error('Error obteniendo productos:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error obteniendo productos',
+      error: error.message
+    });
   }
 });
 
 // Obtener producto por ID (público)
 router.get('/:id', async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).populate('createdBy', 'username');
+    const product = await Product.findById(req.params.id)
+      .populate('createdBy', 'username email');
     
-    if (!product) {
-      return res.status(404).json({ message: 'Producto no encontrado' });
+    if (!product || !product.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Producto no encontrado'
+      });
     }
     
-    res.json(product);
+    res.json({
+      success: true,
+      product: product
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error obteniendo producto' });
+    console.error('Error obteniendo producto:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error obteniendo producto',
+      error: error.message
+    });
   }
 });
 
 // Crear producto (solo admin)
 router.post('/', authenticateJWT, requireAdmin, async (req, res) => {
   try {
-    const product = new Product({
+    const productData = {
       ...req.body,
       createdBy: req.user.userId
-    });
+    };
     
+    const product = new Product(productData);
     await product.save();
-    res.status(201).json(product);
+    
+    await product.populate('createdBy', 'username');
+    
+    res.status(201).json({
+      success: true,
+      message: 'Producto creado exitosamente',
+      product: product
+    });
   } catch (error) {
-    res.status(400).json({ message: 'Error creando producto' });
+    console.error('Error creando producto:', error);
+    
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Datos de producto inválidos',
+        errors: Object.values(error.errors).map(e => e.message)
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: 'Error creando producto',
+      error: error.message
+    });
   }
 });
 
@@ -51,30 +114,57 @@ router.put('/:id', authenticateJWT, requireAdmin, async (req, res) => {
       req.params.id,
       req.body,
       { new: true, runValidators: true }
-    );
+    ).populate('createdBy', 'username');
     
     if (!product) {
-      return res.status(404).json({ message: 'Producto no encontrado' });
+      return res.status(404).json({
+        success: false,
+        message: 'Producto no encontrado'
+      });
     }
     
-    res.json(product);
+    res.json({
+      success: true,
+      message: 'Producto actualizado exitosamente',
+      product: product
+    });
   } catch (error) {
-    res.status(400).json({ message: 'Error actualizando producto' });
+    console.error('Error actualizando producto:', error);
+    res.status(400).json({
+      success: false,
+      message: 'Error actualizando producto',
+      error: error.message
+    });
   }
 });
 
-// Eliminar producto (solo admin)
+// Eliminar producto (solo admin) - Eliminación suave
 router.delete('/:id', authenticateJWT, requireAdmin, async (req, res) => {
   try {
-    const product = await Product.findByIdAndDelete(req.params.id);
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      { isActive: false },
+      { new: true }
+    );
     
     if (!product) {
-      return res.status(404).json({ message: 'Producto no encontrado' });
+      return res.status(404).json({
+        success: false,
+        message: 'Producto no encontrado'
+      });
     }
     
-    res.json({ message: 'Producto eliminado exitosamente' });
+    res.json({
+      success: true,
+      message: 'Producto eliminado exitosamente'
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error eliminando producto' });
+    console.error('Error eliminando producto:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error eliminando producto',
+      error: error.message
+    });
   }
 });
 
