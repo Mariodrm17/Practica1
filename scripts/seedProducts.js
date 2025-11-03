@@ -1,7 +1,49 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
-const Product = require('../src/models/Product');
-const User = require('../src/models/User');
+
+// Definir el modelo de Product aquí mismo para evitar dependencias
+const productSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    description: {
+        type: String,
+        required: true
+    },
+    price: {
+        type: Number,
+        required: true,
+        min: 0
+    },
+    category: {
+        type: String,
+        required: true
+    },
+    image: {
+        type: String,
+        default: ''
+    },
+    stock: {
+        type: Number,
+        required: true,
+        min: 0
+    },
+    league: {
+        type: String,
+        enum: ['NBA', 'ACB', 'Ambas'],
+        default: 'NBA'
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }
+}, {
+    timestamps: true
+});
+
+const Product = mongoose.model('Product', productSchema);
 
 const products = [
     {
@@ -27,7 +69,7 @@ const products = [
         description: "Zapatillas de baloncesto Air Jordan XXXVII, tecnología Zoom Air, edición limitada",
         price: 199.99,
         category: "Calzado",
-        image: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=400",
+        image: "https://images.unsplash.com/photo-1605348532760-6753d2c43329?w=400",
         stock: 8,
         league: "NBA"
     },
@@ -98,7 +140,11 @@ const products = [
 
 async function seedProducts() {
     try {
-        await mongoose.connect(process.env.MONGODB_URI);
+        // Conectar a MongoDB
+        await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/portal_productos', {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        });
         console.log('✅ Conectado a MongoDB');
 
         // Limpiar productos existentes
@@ -107,7 +153,12 @@ async function seedProducts() {
 
         // Crear productos
         await Product.insertMany(products);
-        console.log('🏀 Productos de baloncesto creados exitosamente!');
+        console.log(`🏀 ${products.length} productos de baloncesto creados exitosamente!`);
+
+        // Mostrar resumen
+        const nbaProducts = products.filter(p => p.league === 'NBA').length;
+        const acbProducts = products.filter(p => p.league === 'ACB').length;
+        console.log(`📊 Resumen: ${nbaProducts} productos NBA, ${acbProducts} productos ACB`);
 
         process.exit(0);
     } catch (error) {
