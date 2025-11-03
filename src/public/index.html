@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Productos</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>🛍️ Portal de Productos</h1>
+            <nav>
+                <div id="auth-buttons">
+                    <button onclick="showLogin()">Login</button>
+                    <button onclick="showRegister()">Registro</button>
+                </div>
+                <div id="user-menu" style="display: none;">
+                    <span id="username-display"></span>
+                    <button onclick="showProducts()">Productos</button>
+                    <button onclick="showChat()">Chat</button>
+                    <button onclick="logout()">Logout</button>
+                </div>
+            </nav>
+        </header>
+
+        <main>
+            <!-- Formulario de Login -->
+            <div id="login-section" class="section">
+                <h2>Login</h2>
+                <form id="login-form">
+                    <input type="email" placeholder="Email" required>
+                    <input type="password" placeholder="Password" required>
+                    <button type="submit">Entrar</button>
+                </form>
+            </div>
+
+            <!-- Formulario de Registro -->
+            <div id="register-section" class="section" style="display: none;">
+                <h2>Registro</h2>
+                <form id="register-form">
+                    <input type="text" placeholder="Username" required>
+                    <input type="email" placeholder="Email" required>
+                    <input type="password" placeholder="Password" required>
+                    <button type="submit">Registrarse</button>
+                </form>
+            </div>
+
+            <!-- Lista de Productos -->
+            <div id="products-section" class="section" style="display: none;">
+                <h2>Productos</h2>
+                <div id="admin-panel" style="display: none;">
+                    <h3>Panel de Administrador</h3>
+                    <button onclick="showCreateProduct()">Crear Producto</button>
+                </div>
+                <div id="products-list"></div>
+            </div>
+
+            <!-- Chat -->
+            <div id="chat-section" class="section" style="display: none;">
+                <h2>Chat en Tiempo Real</h2>
+                <div id="chat-container">
+                    <div id="messages"></div>
+                    <div id="typing-indicator"></div>
+                    <form id="message-form">
+                        <input type="text" id="message-input" placeholder="Escribe tu mensaje..." required>
+                        <button type="submit">Enviar</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat - Portal de Productos</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="chat-app">
+        <header>
+            <h1>💬 Chat en Tiempo Real</h1>
+            <nav>
+                <button onclick="window.location.href='/'">Volver a Productos</button>
+                <button onclick="logout()">Cerrar Sesión</button>
+            </nav>
+        </header>
+
+        <main>
+            <div class="section">
+                <div id="chat-container">
+                    <div id="messages"></div>
+                    <div id="typing-indicator"></div>
+                    <form id="message-form">
+                        <input type="text" id="message-input" placeholder="Escribe tu mensaje..." required>
+                        <button type="submit">Enviar</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Código específico para la página de chat
+        // Similar al client.js pero enfocado solo en el chat
+    </script>
+</body>
+</html>
