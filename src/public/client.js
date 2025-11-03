@@ -4,7 +4,67 @@ class BasketballStore {
         this.user = null;
         this.socket = null;
         this.products = [];
+        this.API_BASE = window.location.origin; // Esto se adapta automáticamente a Render
         this.init();
+    }
+
+    async loadProducts() {
+        try {
+            console.log('🔄 Cargando productos desde:', `${this.API_BASE}/api/products`);
+            const productsList = document.getElementById('products-list');
+            productsList.innerHTML = '<div class="loading">Cargando productos... 🏀</div>';
+
+            const response = await fetch(`${this.API_BASE}/api/products`);
+            
+            console.log('📡 Response status:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
+            }
+            
+            this.products = await response.json();
+            console.log(`✅ ${this.products.length} productos cargados:`, this.products);
+            
+            this.renderProducts(this.products);
+        } catch (error) {
+            console.error('❌ Error cargando productos:', error);
+            const productsList = document.getElementById('products-list');
+            productsList.innerHTML = `
+                <div class="error">
+                    <h3>Error cargando productos</h3>
+                    <p>${error.message}</p>
+                    <p>URL intentada: ${this.API_BASE}/api/products</p>
+                    <button onclick="app.loadProducts()">🔄 Reintentar</button>
+                    <button onclick="app.testConnection()">🔧 Probar conexión</button>
+                </div>
+            `;
+        }
+    }
+
+    async testConnection() {
+        try {
+            console.log('🔧 Probando conexión con el servidor...');
+            
+            const tests = [
+                `${this.API_BASE}/api/health`,
+                `${this.API_BASE}/api/debug/products`,
+                `${this.API_BASE}/api/products`
+            ];
+            
+            for (const url of tests) {
+                const response = await fetch(url);
+                console.log(`📡 ${url}: ${response.status} ${response.statusText}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log(`✅ ${url}:`, data);
+                }
+            }
+            
+            this.showNotification('✅ Pruebas de conexión completadas - Revisa la consola', 'success');
+        } catch (error) {
+            console.error('❌ Error en prueba de conexión:', error);
+            this.showNotification('❌ Error en prueba de conexión', 'error');
+        }
     }
 
     init() {

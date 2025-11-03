@@ -182,6 +182,24 @@ app.post("/api/debug/create-test-product", async (req, res) => {
   }
 });
 
+app.get("/api/debug/frontend", (req, res) => {
+    res.json({
+        message: "✅ Backend funcionando correctamente",
+        frontendUrls: {
+            health: `${req.protocol}://${req.get('host')}/api/health`,
+            products: `${req.protocol}://${req.get('host')}/api/products`,
+            debugProducts: `${req.protocol}://${req.get('host')}/api/debug/products`
+        },
+        headers: req.headers,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Añade esto al server.js
+app.get("/debug", (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "debug.html"));
+});
+
 // ================== SOCKET.IO PARA CHAT ==================
 
 // Socket.io para chat en tiempo real

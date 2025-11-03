@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico - Tienda Baloncesto</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border-left: 4px solid #ccc; }
+        .success { border-color: green; background: #f0fff0; }
+        .error { border-color: red; background: #fff0f0; }
+        button { padding: 10px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Diagnóstico de la Tienda</h1>
+    
+    <div id="tests">
+        <div class="test" id="test1">
+            <h3>1. Conexión básica</h3>
+            <button onclick="testConnection()">Probar</button>
+            <div id="result1"></div>
+        </div>
+        
+        <div class="test" id="test2">
+            <h3>2. Productos en BD</h3>
+            <button onclick="testProducts()">Probar</button>
+            <div id="result2"></div>
+        </div>
+        
+        <div class="test" id="test3">
+            <h3>3. Frontend principal</h3>
+            <button onclick="window.location.href='/'">Ir a la tienda</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        
+        async function testConnection() {
+            try {
+                const response = await fetch(`${API_BASE}/api/health`);
+                const data = await response.json();
+                
+                document.getElementById('result1').innerHTML = `
+                    <div class="success">
+                        <strong>✅ CONEXIÓN EXITOSA</strong>
+                        <p>Servidor: ${data.message}</p>
+                        <p>Timestamp: ${data.timestamp}</p>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('result1').innerHTML = `
+                    <div class="error">
+                        <strong>❌ ERROR DE CONEXIÓN</strong>
+                        <p>${error.message}</p>
+                        <p>URL: ${API_BASE}/api/health</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testProducts() {
+            try {
+                const response = await fetch(`${API_BASE}/api/debug/products`);
+                const data = await response.json();
+                
+                document.getElementById('result2').innerHTML = `
+                    <div class="success">
+                        <strong>✅ PRODUCTOS ENCONTRADOS</strong>
+                        <p>${data.message}</p>
+                        <p>Total: ${data.count} productos</p>
+                        ${data.products.map(p => `
+                            <div style="margin: 5px 0; padding: 5px; background: white;">
+                                <strong>${p.name}</strong> - €${p.price} (${p.league})
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('result2').innerHTML = `
+                    <div class="error">
+                        <strong>❌ ERROR CARGANDO PRODUCTOS</strong>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Ejecutar tests automáticamente
+        testConnection();
+        testProducts();
+    </script>
+</body>
+</html>
