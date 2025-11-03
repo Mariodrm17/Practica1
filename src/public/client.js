@@ -4,67 +4,8 @@ class BasketballStore {
         this.user = null;
         this.socket = null;
         this.products = [];
-        this.API_BASE = window.location.origin; // Esto se adapta automáticamente a Render
+        this.API_BASE = window.location.origin;
         this.init();
-    }
-
-    async loadProducts() {
-        try {
-            console.log('🔄 Cargando productos desde:', `${this.API_BASE}/api/products`);
-            const productsList = document.getElementById('products-list');
-            productsList.innerHTML = '<div class="loading">Cargando productos... 🏀</div>';
-
-            const response = await fetch(`${this.API_BASE}/api/products`);
-            
-            console.log('📡 Response status:', response.status);
-            
-            if (!response.ok) {
-                throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
-            }
-            
-            this.products = await response.json();
-            console.log(`✅ ${this.products.length} productos cargados:`, this.products);
-            
-            this.renderProducts(this.products);
-        } catch (error) {
-            console.error('❌ Error cargando productos:', error);
-            const productsList = document.getElementById('products-list');
-            productsList.innerHTML = `
-                <div class="error">
-                    <h3>Error cargando productos</h3>
-                    <p>${error.message}</p>
-                    <p>URL intentada: ${this.API_BASE}/api/products</p>
-                    <button onclick="app.loadProducts()">🔄 Reintentar</button>
-                    <button onclick="app.testConnection()">🔧 Probar conexión</button>
-                </div>
-            `;
-        }
-    }
-
-    async testConnection() {
-        try {
-            console.log('🔧 Probando conexión con el servidor...');
-            
-            const tests = [
-                `${this.API_BASE}/api/health`,
-                `${this.API_BASE}/api/debug/products`,
-                `${this.API_BASE}/api/products`
-            ];
-            
-            for (const url of tests) {
-                const response = await fetch(url);
-                console.log(`📡 ${url}: ${response.status} ${response.statusText}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log(`✅ ${url}:`, data);
-                }
-            }
-            
-            this.showNotification('✅ Pruebas de conexión completadas - Revisa la consola', 'success');
-        } catch (error) {
-            console.error('❌ Error en prueba de conexión:', error);
-            this.showNotification('❌ Error en prueba de conexión', 'error');
-        }
     }
 
     init() {
@@ -76,7 +17,7 @@ class BasketballStore {
     async checkAuth() {
         if (this.token) {
             try {
-                const response = await fetch('/api/auth/verify', {
+                const response = await fetch(`${this.API_BASE}/api/auth/verify`, {
                     headers: {
                         'Authorization': `Bearer ${this.token}`
                     }
@@ -173,7 +114,7 @@ class BasketballStore {
         submitBtn.disabled = true;
 
         try {
-            const response = await fetch('/api/auth/login', {
+            const response = await fetch(`${this.API_BASE}/api/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -215,7 +156,7 @@ class BasketballStore {
         submitBtn.disabled = true;
 
         try {
-            const response = await fetch('/api/auth/register', {
+            const response = await fetch(`${this.API_BASE}/api/auth/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -286,16 +227,39 @@ class BasketballStore {
 
     async loadProducts() {
         try {
+            console.log('🔄 Cargando productos...');
             const productsList = document.getElementById('products-list');
             productsList.innerHTML = '<div class="loading">Cargando productos... 🏀</div>';
 
-            const response = await fetch('/api/products');
-            this.products = await response.json();
+            const response = await fetch(`${this.API_BASE}/api/products`);
             
-            this.renderProducts(this.products);
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('📦 Respuesta de la API:', data);
+            
+            // CORRECCIÓN: Ahora los productos están en data.products
+            if (data.success && Array.isArray(data.products)) {
+                this.products = data.products;
+                console.log(`✅ ${this.products.length} productos cargados`);
+                this.renderProducts(this.products);
+            } else {
+                throw new Error('Formato de respuesta inválido');
+            }
+            
         } catch (error) {
-            console.error('Error cargando productos:', error);
-            document.getElementById('products-list').innerHTML = '<div class="error">Error cargando productos</div>';
+            console.error('❌ Error cargando productos:', error);
+            const productsList = document.getElementById('products-list');
+            productsList.innerHTML = `
+                <div class="error">
+                    <h3>Error cargando productos</h3>
+                    <p>${error.message}</p>
+                    <button onclick="app.loadProducts()">🔄 Reintentar</button>
+                    <button onclick="app.testConnection()">🔧 Probar conexión</button>
+                </div>
+            `;
         }
     }
 
@@ -303,8 +267,17 @@ class BasketballStore {
         const productsList = document.getElementById('products-list');
         productsList.innerHTML = '';
 
-        if (products.length === 0) {
-            productsList.innerHTML = '<div class="no-products">No hay productos disponibles</div>';
+        if (!products || products.length === 0) {
+            productsList.innerHTML = `
+                <div class="no-products">
+                    <h3>🏀 No hay productos disponibles</h3>
+                    <p>No se encontraron productos en la tienda.</p>
+                    ${this.user && this.user.role === 'admin' ? 
+                        '<button onclick="showCreateProduct()">➕ Crear primer producto</button>' : 
+                        '<p>Vuelve más tarde o contacta al administrador.</p>'
+                    }
+                </div>
+            `;
             return;
         }
 
@@ -319,7 +292,9 @@ class BasketballStore {
                 <p class="description">${product.description}</p>
                 <div class="price">€${product.price}</div>
                 <span class="category">${product.category}</span>
-                <div class="stock">🏀 Stock: ${product.stock} unidades</div>
+                <div class="stock ${product.stock > 0 ? 'in-stock' : 'out-of-stock'}">
+                    ${product.stock > 0 ? `🏀 Stock: ${product.stock} unidades` : '❌ Agotado'}
+                </div>
                 ${this.user && this.user.role === 'admin' ? `
                     <div class="admin-actions">
                         <button class="edit-btn" onclick="editProduct('${product._id}')">✏️ Editar</button>
@@ -333,6 +308,11 @@ class BasketballStore {
 
     filterProducts(filter) {
         let filteredProducts = this.products;
+        
+        if (!filteredProducts || !Array.isArray(filteredProducts)) {
+            console.error('No hay productos para filtrar');
+            return;
+        }
         
         switch (filter) {
             case 'nba':
@@ -353,6 +333,9 @@ class BasketballStore {
             case 'under50':
                 filteredProducts = this.products.filter(p => p.price < 50);
                 break;
+            case 'in-stock':
+                filteredProducts = this.products.filter(p => p.stock > 0);
+                break;
             default:
                 filteredProducts = this.products;
         }
@@ -365,7 +348,7 @@ class BasketballStore {
         const formData = new FormData(form);
         
         try {
-            const response = await fetch('/api/products', {
+            const response = await fetch(`${this.API_BASE}/api/products`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -382,18 +365,19 @@ class BasketballStore {
                 })
             });
 
-            if (response.ok) {
+            const data = await response.json();
+
+            if (response.ok && data.success) {
                 this.showNotification('¡Producto creado exitosamente! 🎉', 'success');
                 form.reset();
                 showProducts();
                 this.loadProducts();
             } else {
-                const data = await response.json();
-                this.showNotification(data.message, 'error');
+                this.showNotification(data.message || 'Error creando producto', 'error');
             }
         } catch (error) {
             console.error('Error creando producto:', error);
-            this.showNotification('Error creando producto', 'error');
+            this.showNotification('Error de conexión', 'error');
         }
     }
 
@@ -474,7 +458,6 @@ class BasketballStore {
     }
 
     showNotification(message, type = 'info') {
-        // Crear notificación
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
         notification.innerHTML = `
@@ -482,7 +465,6 @@ class BasketballStore {
             <button onclick="this.parentElement.remove()">×</button>
         `;
         
-        // Estilos para la notificación
         notification.style.cssText = `
             position: fixed;
             top: 20px;
@@ -501,12 +483,34 @@ class BasketballStore {
 
         document.body.appendChild(notification);
 
-        // Auto-remover después de 4 segundos
         setTimeout(() => {
             if (notification.parentElement) {
                 notification.remove();
             }
         }, 4000);
+    }
+
+    async testConnection() {
+        try {
+            console.log('🔧 Probando conexión con el servidor...');
+            
+            const tests = [
+                `${this.API_BASE}/api/health`,
+                `${this.API_BASE}/api/products`,
+                `${this.API_BASE}/api/debug/database`
+            ];
+            
+            for (const url of tests) {
+                const response = await fetch(url);
+                const data = await response.json();
+                console.log(`📡 ${url}:`, data);
+            }
+            
+            this.showNotification('✅ Pruebas de conexión completadas - Revisa la consola', 'success');
+        } catch (error) {
+            console.error('❌ Error en prueba de conexión:', error);
+            this.showNotification('❌ Error en prueba de conexión', 'error');
+        }
     }
 }
 
@@ -543,7 +547,6 @@ function showChat() {
     document.getElementById('chat-section').style.display = 'block';
     document.getElementById('create-product-section').style.display = 'none';
     
-    // Scroll al final del chat
     setTimeout(() => {
         const messages = document.getElementById('messages');
         if (messages) {
@@ -568,7 +571,6 @@ function editProduct(productId) {
     const product = app.products.find(p => p._id === productId);
     if (product) {
         if (confirm(`¿Editar producto: ${product.name}?`)) {
-            // Aquí podrías implementar un modal de edición
             const newName = prompt('Nuevo nombre:', product.name);
             if (newName) {
                 updateProduct(productId, { name: newName });
@@ -579,7 +581,7 @@ function editProduct(productId) {
 
 async function updateProduct(productId, updates) {
     try {
-        const response = await fetch(`/api/products/${productId}`, {
+        const response = await fetch(`${app.API_BASE}/api/products/${productId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -588,11 +590,13 @@ async function updateProduct(productId, updates) {
             body: JSON.stringify(updates)
         });
 
-        if (response.ok) {
+        const data = await response.json();
+
+        if (response.ok && data.success) {
             app.showNotification('Producto actualizado ✅', 'success');
             app.loadProducts();
         } else {
-            app.showNotification('Error actualizando producto', 'error');
+            app.showNotification(data.message || 'Error actualizando producto', 'error');
         }
     } catch (error) {
         console.error('Error:', error);
@@ -604,18 +608,20 @@ async function deleteProduct(productId) {
     const product = app.products.find(p => p._id === productId);
     if (product && confirm(`¿Estás seguro de eliminar "${product.name}"?`)) {
         try {
-            const response = await fetch(`/api/products/${productId}`, {
+            const response = await fetch(`${app.API_BASE}/api/products/${productId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${app.token}`
                 }
             });
 
-            if (response.ok) {
+            const data = await response.json();
+
+            if (response.ok && data.success) {
                 app.showNotification('Producto eliminado 🗑️', 'success');
                 app.loadProducts();
             } else {
-                app.showNotification('Error eliminando producto', 'error');
+                app.showNotification(data.message || 'Error eliminando producto', 'error');
             }
         } catch (error) {
             console.error('Error:', error);
@@ -629,7 +635,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.app = new BasketballStore();
 });
 
-// Añadir estilos CSS para las notificaciones
+// Añadir estilos CSS para las notificaciones y estados
 const style = document.createElement('style');
 style.textContent = `
     @keyframes slideIn {
@@ -663,6 +669,14 @@ style.textContent = `
         padding: 2rem;
         color: #EF4444;
         font-size: 1.1rem;
+        background: #FEF2F2;
+        border-radius: 8px;
+        margin: 1rem 0;
+    }
+    
+    .error button {
+        margin: 0.5rem;
+        padding: 0.5rem 1rem;
     }
     
     .no-products {
@@ -670,6 +684,8 @@ style.textContent = `
         padding: 3rem;
         color: #666;
         font-size: 1.1rem;
+        background: #F9FAFB;
+        border-radius: 8px;
     }
     
     .filter-buttons {
@@ -695,6 +711,25 @@ style.textContent = `
     
     .both-badge {
         background: linear-gradient(135deg, #1D428A 0%, #FF6B00 100%);
+    }
+    
+    .in-stock {
+        color: #059669;
+        font-weight: bold;
+    }
+    
+    .out-of-stock {
+        color: #DC2626;
+        font-weight: bold;
+    }
+    
+    .product-card {
+        transition: all 0.3s ease;
+    }
+    
+    .product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
     }
 `;
 document.head.appendChild(style);
