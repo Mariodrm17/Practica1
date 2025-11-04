@@ -6,15 +6,14 @@ const http = require("http");
 const path = require("path");
 const cors = require("cors");
 
-// Importar modelos y rutas
+// ================== IMPORTAR MODELOS Y RUTAS ==================
 const Product = require("./models/Product");
 const User = require("./models/User");
+const ChatMessage = require("./models/ChatMessage"); // ← SOLO UNA VEZ aquí
 const authRoutes = require("./routes/authRoutes");
 const productRoutes = require("./routes/productRoutes");
 const chatRoutes = require("./routes/chatRoutes");
-const Cart = require('./models/Cart');
-const ChatMessage = require('./models/ChatMessage');
-const cartRoutes = require('./routes/cartRoutes');
+const cartRoutes = require("./routes/cartRoutes");
 
 const app = express();
 const server = http.createServer(app);
@@ -32,7 +31,6 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
-app.use("/api/cart", cartRoutes);
 
 // Conexión a MongoDB con mejor manejo de errores
 console.log('🔗 Intentando conectar a MongoDB Atlas...');
@@ -153,56 +151,6 @@ async function createDefaultProducts() {
         stock: 20,
         league: "ACB",
         createdBy: createdById
-      },
-      {
-        name: "Camiseta FC Barcelona",
-        description: "Camiseta edición especial FC Barcelona. Diseño clásico con tecnología de secado rápido.",
-        price: 84.99,
-        category: "Camisetas",
-        image: "https://images.unsplash.com/photo-1614624532983-1fe212c7d6e5?w=400",
-        stock: 18,
-        league: "ACB",
-        createdBy: createdById
-      },
-      {
-        name: "Canasta Portátil Profesional",
-        description: "Canasta de baloncesto portátil profesional, altura regulable (2.20m - 3.05m), tablero de acrílico de 10mm.",
-        price: 299.99,
-        category: "Equipamiento",
-        image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?w=400",
-        stock: 12,
-        league: "Ambas",
-        createdBy: createdById
-      },
-      {
-        name: "Mochila NBA Team Collection",
-        description: "Mochila oficial NBA con compartimentos especiales para balón y zapatillas. Resistente al agua con múltiples bolsillos.",
-        price: 59.99,
-        category: "Accesorios",
-        image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400",
-        stock: 40,
-        league: "NBA",
-        createdBy: createdById
-      },
-      {
-        name: "Medias Compresión Nike NBA",
-        description: "Medias de compresión oficiales NBA, tecnología Dri-FIT. Mejora la circulación y reduce la fatiga muscular.",
-        price: 24.99,
-        category: "Ropa",
-        image: "https://images.unsplash.com/photo-1544966503-7cc5ac882d5b?w=400",
-        stock: 60,
-        league: "NBA",
-        createdBy: createdById
-      },
-      {
-        name: "Balón ACB Edición Aniversario",
-        description: "Balón conmemorativo 40 aniversario ACB, edición limitada numerada. Incluye certificado de autenticidad.",
-        price: 129.99,
-        category: "Balones",
-        image: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400",
-        stock: 3,
-        league: "ACB",
-        createdBy: createdById
       }
     ];
 
@@ -240,6 +188,7 @@ async function createDefaultAdmin() {
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/cart", cartRoutes);
 
 // Ruta de salud mejorada
 app.get("/api/health", async (req, res) => {
@@ -322,11 +271,7 @@ app.get("/debug", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "debug.html"));
 });
 
-// ================== SOCKET.IO CONEXIONES EN TIEMPO REAL ==================
-
-// Importar modelos necesarios para Socket.IO
-const ChatMessage = require('./models/ChatMessage');
-const User = require('./models/User');
+// ================== SOCKET.IO COMPLETO ==================
 
 io.on("connection", (socket) => {
     console.log("✅ Nueva conexión Socket.IO:", socket.id);
@@ -353,7 +298,6 @@ io.on("connection", (socket) => {
                 socket.emit("chatHistory", chatHistory);
             } catch (historyError) {
                 console.error("Error cargando historial:", historyError);
-                // Enviar historial vacío como fallback
                 socket.emit("chatHistory", []);
             }
             
@@ -444,7 +388,6 @@ io.on("connection", (socket) => {
     
     socket.on("userActivity", (data) => {
         try {
-            // Emitir actividad de usuario a otros clientes
             socket.broadcast.emit("userActivityUpdate", {
                 username: data.username,
                 activity: data.activity,
@@ -457,10 +400,9 @@ io.on("connection", (socket) => {
 
     socket.on("productUpdate", (data) => {
         try {
-            // Notificar a todos sobre actualizaciones de productos
             io.emit("productUpdated", {
                 productId: data.productId,
-                action: data.action, // 'created', 'updated', 'deleted'
+                action: data.action,
                 username: data.username,
                 timestamp: new Date().toISOString()
             });
@@ -472,9 +414,8 @@ io.on("connection", (socket) => {
 
     socket.on("cartUpdate", (data) => {
         try {
-            // Notificar a un usuario específico sobre cambios en su carrito
             socket.emit("cartUpdated", {
-                action: data.action, // 'itemAdded', 'itemRemoved', 'cartCleared'
+                action: data.action,
                 item: data.item,
                 cartTotal: data.cartTotal,
                 timestamp: new Date().toISOString()
@@ -484,67 +425,17 @@ io.on("connection", (socket) => {
         }
     });
 
-    // ================== ESTADO DE CONEXIÓN ==================
-    
-    socket.on("userOnline", (userData) => {
-        try {
-            // Notificar que un usuario está online
-            socket.broadcast.emit("userStatusChanged", {
-                username: userData.username,
-                status: "online",
-                timestamp: new Date().toISOString()
-            });
-        } catch (error) {
-            console.error("Error en userOnline:", error);
-        }
-    });
-
-    // ================== MENSAJES PRIVADOS (OPCIONAL) ==================
-    
-    socket.on("privateMessage", (data) => {
-        try {
-            // Enviar mensaje privado a usuario específico
-            io.to(data.toUserId).emit("newPrivateMessage", {
-                from: data.from,
-                message: data.message,
-                timestamp: new Date().toISOString()
-            });
-        } catch (error) {
-            console.error("Error en privateMessage:", error);
-        }
-    });
-
-    socket.on("joinPrivateRoom", (data) => {
-        try {
-            // Unirse a sala privada para mensajes 1 a 1
-            socket.join(`private-${data.roomId}`);
-        } catch (error) {
-            console.error("Error en joinPrivateRoom:", error);
-        }
-    });
-
     // ================== MANEJO DE DESCONEXIÓN ==================
     
     socket.on("disconnect", async (reason) => {
         console.log(`❌ Usuario desconectado: ${socket.id} - Razón: ${reason}`);
         
         try {
-            // Aquí podrías guardar un mensaje de desconexión si lo deseas
-            // const leaveMessage = new ChatMessage({
-            //     username: 'Sistema',
-            //     message: `Un usuario abandonó el chat`,
-            //     room: "chat-room", 
-            //     type: "system"
-            // });
-            // await leaveMessage.save();
-            
-            // Notificar que el usuario está offline
             socket.broadcast.emit("userStatusChanged", {
                 socketId: socket.id,
                 status: "offline",
                 timestamp: new Date().toISOString()
             });
-            
         } catch (error) {
             console.error("Error en disconnect:", error);
         }
@@ -560,43 +451,8 @@ io.on("connection", (socket) => {
         });
     });
 
-    // ================== EVENTOS DE PING/PONG ==================
-    
-    socket.on("ping", (data) => {
-        try {
-            socket.emit("pong", {
-                timestamp: new Date().toISOString(),
-                serverTime: Date.now()
-            });
-        } catch (error) {
-            console.error("Error en ping:", error);
-        }
-    });
-
     console.log(`🎯 Socket ${socket.id} configurado correctamente`);
 });
-
-// ================== EVENTOS GLOBALES DEL SISTEMA ==================
-
-// Emitir evento cuando el servidor esté listo
-io.emit("serverReady", {
-    message: "Servidor de Socket.IO listo",
-    timestamp: new Date().toISOString(),
-    connectedClients: io.engine.clientsCount
-});
-
-// Configurar intervalo para estadísticas (opcional)
-setInterval(() => {
-    try {
-        io.emit("serverStats", {
-            connectedClients: io.engine.clientsCount,
-            uptime: process.uptime(),
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error("Error enviando stats:", error);
-    }
-}, 30000); // Cada 30 segundos
 
 // ================== MANEJO DE ERRORES ==================
 
