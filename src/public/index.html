@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal de Productos</title>
+    <title>🏀 Tienda de Baloncesto NBA/ACB</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div id="app">
         <header>
-            <h1>🛍️ Portal de Productos</h1>
+            <div class="logo">
+                <h1>🏀 <span>Basket</span>Store</h1>
+            </div>
             <nav>
                 <div id="auth-buttons">
                     <button onclick="showLogin()">Login</button>
@@ -18,7 +20,11 @@
                 <div id="user-menu" style="display: none;">
                     <span id="username-display"></span>
                     <button onclick="showProducts()">Productos</button>
-                    <button onclick="showChat()">Chat</button>
+                    <button onclick="showCart()">
+                        🛒 Carrito 
+                        <span id="cart-count" style="display: none;">0</span>
+                    </button>
+                    <button onclick="showChat()">💬 Chat</button>
                     <button onclick="logout()">Logout</button>
                 </div>
             </nav>
@@ -48,17 +54,42 @@
 
             <!-- Lista de Productos -->
             <div id="products-section" class="section" style="display: none;">
-                <h2>Productos</h2>
+                <h2>🏀 Productos de Baloncesto</h2>
+                
+                <!-- Filtros -->
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all">Todos</button>
+                    <button class="filter-btn" data-filter="nba">NBA</button>
+                    <button class="filter-btn" data-filter="acb">ACB</button>
+                    <button class="filter-btn" data-filter="balls">Balones</button>
+                    <button class="filter-btn" data-filter="jerseys">Camisetas</button>
+                    <button class="filter-btn" data-filter="shoes">Calzado</button>
+                    <button class="filter-btn" data-filter="in-stock">En Stock</button>
+                </div>
+
                 <div id="admin-panel" style="display: none;">
                     <h3>Panel de Administrador</h3>
-                    <button onclick="showCreateProduct()">Crear Producto</button>
+                    <button onclick="showCreateProduct()">➕ Crear Producto</button>
                 </div>
                 <div id="products-list"></div>
             </div>
 
+            <!-- CARRITO DE COMPRAS -->
+            <div id="cart-section" class="section" style="display: none;">
+                <h2>🛒 Tu Carrito de Compras</h2>
+                <div id="cart-content">
+                    <div id="cart-items"></div>
+                    <div id="cart-total" class="cart-total"></div>
+                    <div class="cart-actions">
+                        <button onclick="app.clearCart()" class="clear-cart-btn">🗑️ Vaciar Carrito</button>
+                        <button onclick="app.checkout()" class="checkout-btn">💰 Proceder al Pago</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Chat -->
             <div id="chat-section" class="section" style="display: none;">
-                <h2>Chat en Tiempo Real</h2>
+                <h2>💬 Chat en Tiempo Real</h2>
                 <div id="chat-container">
                     <div id="messages"></div>
                     <div id="typing-indicator"></div>
@@ -68,7 +99,63 @@
                     </form>
                 </div>
             </div>
+
+            <!-- Crear Producto (Admin) -->
+            <div id="create-product-section" class="section" style="display: none;">
+                <h2>➕ Crear Nuevo Producto</h2>
+                <form id="create-product-form">
+                    <input type="text" name="name" placeholder="Nombre del producto" required>
+                    <textarea name="description" placeholder="Descripción" required></textarea>
+                    <input type="number" name="price" placeholder="Precio" step="0.01" required>
+                    <select name="category" required>
+                        <option value="">Selecciona categoría</option>
+                        <option value="Balones">Balones</option>
+                        <option value="Camisetas">Camisetas</option>
+                        <option value="Calzado">Calzado</option>
+                        <option value="Equipamiento">Equipamiento</option>
+                        <option value="Accesorios">Accesorios</option>
+                        <option value="Ropa">Ropa</option>
+                    </select>
+                    <select name="league" required>
+                        <option value="">Selecciona liga</option>
+                        <option value="NBA">NBA</option>
+                        <option value="ACB">ACB</option>
+                        <option value="Ambas">Ambas</option>
+                    </select>
+                    <input type="number" name="stock" placeholder="Stock" required>
+                    <input type="text" name="image" placeholder="URL de imagen (opcional)">
+                    <button type="submit">Crear Producto</button>
+                </form>
+            </div>
         </main>
+    </div>
+
+    <!-- MODAL PARA AÑADIR AL CARRITO -->
+    <div id="product-modal" class="product-modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2 id="modal-product-name"></h2>
+            <img id="modal-product-image" src="" alt="">
+            <p id="modal-product-description" class="description"></p>
+            <div id="modal-product-price" class="price"></div>
+            
+            <div id="size-selection" class="size-selection" style="display: none;">
+                <label for="size-select">Selecciona talla:</label>
+                <select id="size-select">
+                    <option value="">Selecciona una talla</option>
+                </select>
+            </div>
+            
+            <div class="quantity-selection">
+                <label for="quantity-select">Cantidad:</label>
+                <input type="number" id="quantity-select" min="1" value="1">
+            </div>
+            
+            <div class="modal-actions">
+                <button id="add-to-cart-modal-btn" class="add-to-cart-btn">🛒 Añadir al Carrito</button>
+                <button class="cancel-btn">Cancelar</button>
+            </div>
+        </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
