@@ -4,7 +4,8 @@ const chatMessageSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    // Hacerlo opcional para mensajes del sistema
+    required: false
   },
   username: {
     type: String,
@@ -39,5 +40,10 @@ chatMessageSchema.statics.getChatHistory = function(room = 'general', limit = 50
     .limit(limit)
     .then(messages => messages.reverse());
 };
+
+// Método virtual para determinar si es mensaje del sistema
+chatMessageSchema.virtual('isSystemMessage').get(function() {
+  return this.type === 'system' || this.type === 'join' || this.type === 'leave';
+});
 
 module.exports = mongoose.model('ChatMessage', chatMessageSchema);

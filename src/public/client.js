@@ -630,49 +630,54 @@ class BasketballStore {
     // ================== CHAT PERSISTENTE ==================
     
     connectToChat() {
-        this.socket = io();
-    
-        this.socket.on('connect', () => {
-            console.log('Conectado al chat');
-            this.socket.emit('joinChat', {
-                userId: this.user.userId,
-                username: this.user.username,
-                role: this.user.role
-            });
+    this.socket = io();
+
+    this.socket.on('connect', () => {
+        console.log('Conectado al chat');
+        this.socket.emit('joinChat', {
+            userId: this.user.userId, // ← Asegurar que enviamos userId
+            username: this.user.username,
+            role: this.user.role
         });
-    
-        this.socket.on('chatHistory', (messages) => {
-            const messagesContainer = document.getElementById('messages');
-            messagesContainer.innerHTML = '';
-            
-            messages.forEach(message => {
-                if (message.type === 'message') {
-                    this.displayMessage({
-                        username: message.username,
-                        message: message.message,
-                        timestamp: new Date(message.createdAt).toLocaleTimeString('es-ES', { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                        })
-                    });
-                } else if (message.type === 'join' || message.type === 'system') {
-                    this.displaySystemMessage(message.message);
-                }
-            });
+    });
+
+    this.socket.on('chatHistory', (messages) => {
+        const messagesContainer = document.getElementById('messages');
+        messagesContainer.innerHTML = '';
+        
+        messages.forEach(message => {
+            if (message.type === 'message') {
+                this.displayMessage({
+                    username: message.username,
+                    message: message.message,
+                    timestamp: new Date(message.createdAt).toLocaleTimeString('es-ES', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    })
+                });
+            } else {
+                // Mensajes del sistema
+                this.displaySystemMessage(message.message);
+            }
         });
-    
-        this.socket.on('newMessage', (data) => {
-            this.displayMessage(data);
-        });
-    
-        this.socket.on('userJoined', (user) => {
-            this.displaySystemMessage(`🎉 ${user.username} se unió al chat`);
-        });
-    
-        this.socket.on('typing', (data) => {
-            this.showTypingIndicator(data);
-        });
-    }
+    });
+
+    this.socket.on('newMessage', (data) => {
+        this.displayMessage(data);
+    });
+
+    this.socket.on('userJoined', (user) => {
+        this.displaySystemMessage(`🎉 ${user.username} se unió al chat`);
+    });
+
+    this.socket.on('typing', (data) => {
+        this.showTypingIndicator(data);
+    });
+
+    this.socket.on('messageError', (data) => {
+        this.showNotification('Error enviando mensaje', 'error');
+    });
+}
 
     displayMessage(data) {
         const messages = document.getElementById('messages');

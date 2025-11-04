@@ -322,75 +322,281 @@ app.get("/debug", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "debug.html"));
 });
 
-// ================== SOCKET.IO ==================
+// ================== SOCKET.IO CONEXIONES EN TIEMPO REAL ==================
+
+// Importar modelos necesarios para Socket.IO
+const ChatMessage = require('./models/ChatMessage');
+const User = require('./models/User');
 
 io.on("connection", (socket) => {
-  console.log("✅ Usuario conectado al chat:", socket.id);
+    console.log("✅ Nueva conexión Socket.IO:", socket.id);
 
-  socket.on("joinChat", async (user) => {
-    socket.join("chat-room");
+    // ================== CHAT EN TIEMPO REAL ==================
     
-    // Guardar mensaje de sistema
-    const systemMessage = new ChatMessage({
-      user: user.userId,
-      username: user.username,
-      message: `${user.username} se unió al chat`,
-      room: "chat-room",
-      type: "join"
+    socket.on("joinChat", async (user) => {
+        try {
+            console.log(`👋 ${user.username} se unió al chat`);
+            socket.join("chat-room");
+            
+            // Guardar mensaje de sistema
+            const systemMessage = new ChatMessage({
+                username: 'Sistema',
+                message: `${user.username} se unió al chat`,
+                room: "chat-room",
+                type: "system"
+            });
+            await systemMessage.save();
+            
+            // Enviar historial del chat al usuario que se conecta
+            try {
+                const chatHistory = await ChatMessage.getChatHistory("chat-room", 50);
+                socket.emit("chatHistory", chatHistory);
+            } catch (historyError) {
+                console.error("Error cargando historial:", historyError);
+                // Enviar historial vacío como fallback
+                socket.emit("chatHistory", []);
+            }
+            
+            // Notificar a otros usuarios
+            socket.broadcast.to("chat-room").emit("userJoined", {
+                username: user.username,
+                timestamp: new Date().toLocaleTimeString("es-ES", { 
+                    hour: "2-digit", 
+                    minute: "2-digit" 
+                })
+            });
+            
+        } catch (error) {
+            console.error("❌ Error en joinChat:", error);
+            socket.emit("chatError", { message: "Error al unirse al chat" });
+        }
     });
-    await systemMessage.save();
+
+    socket.on("sendMessage", async (data) => {
+        try {
+            console.log(`💬 Mensaje de ${data.username}: ${data.message}`);
+            
+            // Buscar usuario por username para obtener el ID
+            let userId = data.userId;
+            if (!userId) {
+                try {
+                    const user = await User.findOne({ username: data.username });
+                    if (user) {
+                        userId = user._id;
+                    } else {
+                        userId = new mongoose.Types.ObjectId();
+                    }
+                } catch (userError) {
+                    userId = new mongoose.Types.ObjectId();
+                }
+            }
+            
+            // Guardar mensaje en BD
+            const chatMessage = new ChatMessage({
+                user: userId,
+                username: data.username,
+                message: data.message,
+                room: "chat-room",
+                type: "message"
+            });
+            
+            await chatMessage.save();
+            
+            // Emitir mensaje a todos en la sala
+            io.to("chat-room").emit("newMessage", {
+                username: data.username,
+                message: data.message,
+                timestamp: new Date().toLocaleTimeString("es-ES", { 
+                    hour: "2-digit", 
+                    minute: "2-digit" 
+                }),
+                _id: chatMessage._id
+            });
+            
+        } catch (error) {
+            console.error("❌ Error guardando mensaje:", error);
+            
+            // Fallback: enviar mensaje sin persistencia
+            io.to("chat-room").emit("newMessage", {
+                username: data.username,
+                message: data.message,
+                timestamp: new Date().toLocaleTimeString("es-ES", { 
+                    hour: "2-digit", 
+                    minute: "2-digit" 
+                }),
+                temporary: true
+            });
+        }
+    });
+
+    socket.on("typing", (data) => {
+        try {
+            socket.broadcast.to("chat-room").emit("typing", {
+                username: data.username,
+                isTyping: data.isTyping
+            });
+        } catch (error) {
+            console.error("Error en typing:", error);
+        }
+    });
+
+    // ================== NOTIFICACIONES EN TIEMPO REAL ==================
     
-    // Enviar historial del chat
-    const chatHistory = await ChatMessage.getChatHistory("chat-room", 50);
-    socket.emit("chatHistory", chatHistory);
+    socket.on("userActivity", (data) => {
+        try {
+            // Emitir actividad de usuario a otros clientes
+            socket.broadcast.emit("userActivityUpdate", {
+                username: data.username,
+                activity: data.activity,
+                timestamp: new Date().toISOString()
+            });
+        } catch (error) {
+            console.error("Error en userActivity:", error);
+        }
+    });
+
+    socket.on("productUpdate", (data) => {
+        try {
+            // Notificar a todos sobre actualizaciones de productos
+            io.emit("productUpdated", {
+                productId: data.productId,
+                action: data.action, // 'created', 'updated', 'deleted'
+                username: data.username,
+                timestamp: new Date().toISOString()
+            });
+            console.log(`📦 Producto ${data.action}: ${data.productId} por ${data.username}`);
+        } catch (error) {
+            console.error("Error en productUpdate:", error);
+        }
+    });
+
+    socket.on("cartUpdate", (data) => {
+        try {
+            // Notificar a un usuario específico sobre cambios en su carrito
+            socket.emit("cartUpdated", {
+                action: data.action, // 'itemAdded', 'itemRemoved', 'cartCleared'
+                item: data.item,
+                cartTotal: data.cartTotal,
+                timestamp: new Date().toISOString()
+            });
+        } catch (error) {
+            console.error("Error en cartUpdate:", error);
+        }
+    });
+
+    // ================== ESTADO DE CONEXIÓN ==================
     
-    socket.broadcast.to("chat-room").emit("userJoined", user);
-    console.log(`👋 ${user.username} se unió al chat`);
-  });
+    socket.on("userOnline", (userData) => {
+        try {
+            // Notificar que un usuario está online
+            socket.broadcast.emit("userStatusChanged", {
+                username: userData.username,
+                status: "online",
+                timestamp: new Date().toISOString()
+            });
+        } catch (error) {
+            console.error("Error en userOnline:", error);
+        }
+    });
 
-  socket.on("joinChat", (user) => {
-    socket.join("chat-room");
-    socket.broadcast.to("chat-room").emit("userJoined", user);
-    console.log(`👋 ${user.username} se unió al chat`);
-  });
+    // ================== MENSAJES PRIVADOS (OPCIONAL) ==================
+    
+    socket.on("privateMessage", (data) => {
+        try {
+            // Enviar mensaje privado a usuario específico
+            io.to(data.toUserId).emit("newPrivateMessage", {
+                from: data.from,
+                message: data.message,
+                timestamp: new Date().toISOString()
+            });
+        } catch (error) {
+            console.error("Error en privateMessage:", error);
+        }
+    });
 
-  socket.on("sendMessage", async (data) => {
-    try {
-      console.log(`💬 Mensaje de ${data.username}: ${data.message}`);
-      
-      // Guardar mensaje en BD
-      const chatMessage = new ChatMessage({
-        user: data.userId,
-        username: data.username,
-        message: data.message,
-        room: "chat-room",
-        type: "message"
-      });
-      
-      await chatMessage.save();
+    socket.on("joinPrivateRoom", (data) => {
+        try {
+            // Unirse a sala privada para mensajes 1 a 1
+            socket.join(`private-${data.roomId}`);
+        } catch (error) {
+            console.error("Error en joinPrivateRoom:", error);
+        }
+    });
 
-  socket.on("typing", (data) => {
-    socket.broadcast.to("chat-room").emit("typing", data);
-  });
+    // ================== MANEJO DE DESCONEXIÓN ==================
+    
+    socket.on("disconnect", async (reason) => {
+        console.log(`❌ Usuario desconectado: ${socket.id} - Razón: ${reason}`);
+        
+        try {
+            // Aquí podrías guardar un mensaje de desconexión si lo deseas
+            // const leaveMessage = new ChatMessage({
+            //     username: 'Sistema',
+            //     message: `Un usuario abandonó el chat`,
+            //     room: "chat-room", 
+            //     type: "system"
+            // });
+            // await leaveMessage.save();
+            
+            // Notificar que el usuario está offline
+            socket.broadcast.emit("userStatusChanged", {
+                socketId: socket.id,
+                status: "offline",
+                timestamp: new Date().toISOString()
+            });
+            
+        } catch (error) {
+            console.error("Error en disconnect:", error);
+        }
+    });
 
-  socket.on("disconnect", () => {
-    console.log("❌ Usuario desconectado del chat:", socket.id);
-  });
+    // ================== MANEJO DE ERRORES ==================
+    
+    socket.on("error", (error) => {
+        console.error("❌ Error de socket:", error);
+        socket.emit("socketError", { 
+            message: "Error de conexión",
+            code: error.code 
+        });
+    });
 
-   io.to("chat-room").emit("newMessage", {
-        ...data,
-        timestamp: new Date().toLocaleTimeString("es-ES", { 
-          hour: "2-digit", 
-          minute: "2-digit" 
-        }),
-        _id: chatMessage._id
-      });
-    } catch (error) {
-      console.error("Error guardando mensaje:", error);
-      socket.emit("messageError", { error: "Error enviando mensaje" });
-    }
-  });
+    // ================== EVENTOS DE PING/PONG ==================
+    
+    socket.on("ping", (data) => {
+        try {
+            socket.emit("pong", {
+                timestamp: new Date().toISOString(),
+                serverTime: Date.now()
+            });
+        } catch (error) {
+            console.error("Error en ping:", error);
+        }
+    });
+
+    console.log(`🎯 Socket ${socket.id} configurado correctamente`);
 });
+
+// ================== EVENTOS GLOBALES DEL SISTEMA ==================
+
+// Emitir evento cuando el servidor esté listo
+io.emit("serverReady", {
+    message: "Servidor de Socket.IO listo",
+    timestamp: new Date().toISOString(),
+    connectedClients: io.engine.clientsCount
+});
+
+// Configurar intervalo para estadísticas (opcional)
+setInterval(() => {
+    try {
+        io.emit("serverStats", {
+            connectedClients: io.engine.clientsCount,
+            uptime: process.uptime(),
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error("Error enviando stats:", error);
+    }
+}, 30000); // Cada 30 segundos
 
 // ================== MANEJO DE ERRORES ==================
 
