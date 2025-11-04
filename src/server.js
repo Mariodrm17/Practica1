@@ -12,6 +12,7 @@ const User = require("./models/User");
 const authRoutes = require("./routes/authRoutes");
 const productRoutes = require("./routes/productRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const ChatMessage = require("./models/ChatMessage");
 
 const app = express();
 const server = http.createServer(app);
@@ -321,7 +322,7 @@ app.get("/debug", (req, res) => {
 // ================== SOCKET.IO ==================
 
 io.on("connection", (socket) => {
-  console.log("✅ Usuario conectado al chat:", socket.id);
+  console.log(`✅ Usuario conectado al chat: ${socket.id}`);
 
   socket.on("joinChat", (user) => {
     socket.join("chat-room");
