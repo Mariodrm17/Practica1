@@ -12,7 +12,9 @@ const User = require("./models/User");
 const authRoutes = require("./routes/authRoutes");
 const productRoutes = require("./routes/productRoutes");
 const chatRoutes = require("./routes/chatRoutes");
-const ChatMessage = require("./models/ChatMessage");
+const Cart = require('./models/Cart');
+const ChatMessage = require('./models/ChatMessage');
+const cartRoutes = require('./routes/cartRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -30,6 +32,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
+app.use("/api/cart", cartRoutes);
 
 // Conexión a MongoDB con mejor manejo de errores
 console.log('🔗 Intentando conectar a MongoDB Atlas...');
@@ -322,7 +325,28 @@ app.get("/debug", (req, res) => {
 // ================== SOCKET.IO ==================
 
 io.on("connection", (socket) => {
-  console.log(`✅ Usuario conectado al chat: ${socket.id}`);
+  console.log("✅ Usuario conectado al chat:", socket.id);
+
+  socket.on("joinChat", async (user) => {
+    socket.join("chat-room");
+    
+    // Guardar mensaje de sistema
+    const systemMessage = new ChatMessage({
+      user: user.userId,
+      username: user.username,
+      message: `${user.username} se unió al chat`,
+      room: "chat-room",
+      type: "join"
+    });
+    await systemMessage.save();
+    
+    // Enviar historial del chat
+    const chatHistory = await ChatMessage.getChatHistory("chat-room", 50);
+    socket.emit("chatHistory", chatHistory);
+    
+    socket.broadcast.to("chat-room").emit("userJoined", user);
+    console.log(`👋 ${user.username} se unió al chat`);
+  });
 
   socket.on("joinChat", (user) => {
     socket.join("chat-room");
@@ -330,16 +354,20 @@ io.on("connection", (socket) => {
     console.log(`👋 ${user.username} se unió al chat`);
   });
 
-  socket.on("sendMessage", (data) => {
-    console.log(`💬 Mensaje de ${data.username}: ${data.message}`);
-    io.to("chat-room").emit("newMessage", {
-      ...data,
-      timestamp: new Date().toLocaleTimeString("es-ES", { 
-        hour: "2-digit", 
-        minute: "2-digit" 
-      })
-    });
-  });
+  socket.on("sendMessage", async (data) => {
+    try {
+      console.log(`💬 Mensaje de ${data.username}: ${data.message}`);
+      
+      // Guardar mensaje en BD
+      const chatMessage = new ChatMessage({
+        user: data.userId,
+        username: data.username,
+        message: data.message,
+        room: "chat-room",
+        type: "message"
+      });
+      
+      await chatMessage.save();
 
   socket.on("typing", (data) => {
     socket.broadcast.to("chat-room").emit("typing", data);
@@ -347,6 +375,20 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("❌ Usuario desconectado del chat:", socket.id);
+  });
+
+   io.to("chat-room").emit("newMessage", {
+        ...data,
+        timestamp: new Date().toLocaleTimeString("es-ES", { 
+          hour: "2-digit", 
+          minute: "2-digit" 
+        }),
+        _id: chatMessage._id
+      });
+    } catch (error) {
+      console.error("Error guardando mensaje:", error);
+      socket.emit("messageError", { error: "Error enviando mensaje" });
+    }
   });
 });
 

@@ -80,7 +80,7 @@ router.post('/add', authenticateJWT, async (req, res) => {
     if (existingItem) {
       // Actualizar cantidad
       existingItem.quantity += quantity;
-      existingItem.price = product.price; // Actualizar precio por si cambió
+      existingItem.price = product.price;
     } else {
       // Añadir nuevo item
       cart.items.push({
