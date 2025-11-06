@@ -68,26 +68,87 @@ async function initializeDefaultData() {
   try {
     console.log('🏀 Verificando datos iniciales...');
     
+    // Verificar y crear usuario admin PRIMERO (para que los productos tengan createdBy)
+    const adminCount = await User.countDocuments({ role: 'admin' });
+    let adminUser;
+
+    if (adminCount === 0) {
+      console.log('👑 Creando usuario administrador...');
+      adminUser = await createDefaultAdmin();
+    } else {
+      adminUser = await User.findOne({ role: 'admin' });
+      console.log('✅ Usuario admin ya existe:', adminUser.email);
+    }
+    
     // Verificar y crear productos si no existen
     const productCount = await Product.countDocuments();
     console.log(`📦 Productos en BD: ${productCount}`);
     
     if (productCount === 0) {
       console.log('🔄 Creando productos de baloncesto...');
-      await createDefaultProducts();
-    }
-    
-    // Verificar y crear usuario admin
-    const adminCount = await User.countDocuments({ role: 'admin' });
-    if (adminCount === 0) {
-      console.log('👑 Creando usuario administrador...');
-      await createDefaultAdmin();
+      await createDefaultProducts(adminUser);
     }
     
     console.log('🎉 Inicialización completada correctamente');
     
   } catch (error) {
     console.error('❌ Error en inicialización:', error);
+  }
+}
+
+async function createDefaultAdmin() {
+  try {
+    const bcrypt = require('bcryptjs');
+    
+    // Verificar si ya existe
+    const existingAdmin = await User.findOne({ email: 'admin@baloncesto.com' });
+    if (existingAdmin) {
+      console.log('✅ Usuario admin ya existe');
+      return existingAdmin;
+    }
+    
+    const adminUser = new User({
+      username: 'admin',
+      email: 'admin@baloncesto.com',
+      password: await bcrypt.hash('admin123', 12),
+      role: 'admin'
+    });
+    
+    await adminUser.save();
+    console.log('✅ Usuario admin creado: admin@baloncesto.com / admin123');
+    return adminUser;
+    
+  } catch (error) {
+    console.error('❌ Error creando admin:', error);
+    throw error;
+  }
+}
+
+async function createDefaultProducts(adminUser) {
+  try {
+    const createdById = adminUser ? adminUser._id : new mongoose.Types.ObjectId();
+
+    const defaultProducts = [
+      // ... (tu array de productos se mantiene igual)
+      {
+        name: "Balón Oficial NBA Spalding",
+        description: "Balón de baloncesto oficial de la NBA, tamaño 7, material de cuero sintético premium. Ideal para partidos profesionales.",
+        price: 89.99,
+        category: "Balones",
+        image: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400",
+        stock: 25,
+        league: "NBA",
+        createdBy: createdById
+      },
+      // ... resto de productos
+    ];
+
+    await Product.insertMany(defaultProducts);
+    console.log(`✅ ${defaultProducts.length} productos creados exitosamente`);
+    
+  } catch (error) {
+    console.error('❌ Error creando productos:', error);
+    throw error;
   }
 }
 
