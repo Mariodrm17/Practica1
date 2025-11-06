@@ -1,55 +1,51 @@
 const express = require('express');
-const ChatMessage = require('../models/ChatMessage');
 const { authenticateJWT } = require('../middleware/authenticateJWT');
 
 const router = express.Router();
 
-// Obtener historial del chat
-router.get('/history', authenticateJWT, async (req, res) => {
-  try {
-    const { room = 'general', limit = 50 } = req.query;
-    
-    const messages = await ChatMessage.getChatHistory(room, parseInt(limit));
-    
+// Verificar acceso al chat
+router.get('/', authenticateJWT, (req, res) => {
     res.json({
-      success: true,
-      messages: messages
+        success: true,
+        message: 'Acceso al chat autorizado',
+        user: {
+            id: req.user.userId,
+            username: req.user.username,
+            role: req.user.role
+        }
     });
-  } catch (error) {
-    console.error('Error obteniendo historial del chat:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error obteniendo historial del chat'
-    });
-  }
 });
 
-// Guardar mensaje (usado desde Socket.IO)
-router.post('/message', authenticateJWT, async (req, res) => {
-  try {
-    const { message, room = 'general' } = req.body;
-    
-    const chatMessage = new ChatMessage({
-      user: req.user.userId,
-      username: req.user.username,
-      message: message,
-      room: room,
-      type: 'message'
-    });
-    
-    await chatMessage.save();
-    
+// Obtener información del usuario para el chat
+router.get('/user-info', authenticateJWT, (req, res) => {
     res.json({
-      success: true,
-      message: 'Mensaje guardado'
+        success: true,
+        user: {
+            id: req.user.userId,
+            username: req.user.username,
+            role: req.user.role
+        }
     });
-  } catch (error) {
-    console.error('Error guardando mensaje:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error guardando mensaje'
-    });
-  }
+});
+
+// Endpoint para obtener historial de chat (si lo implementas)
+router.get('/history', authenticateJWT, async (req, res) => {
+    try {
+        // Aquí podrías implementar la lógica para obtener historial de chat
+        // desde una base de datos si decides persistir los mensajes
+        
+        res.json({
+            success: true,
+            message: 'Historial de chat (pendiente de implementar)',
+            history: []
+        });
+    } catch (error) {
+        console.error('Error obteniendo historial de chat:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error obteniendo historial de chat'
+        });
+    }
 });
 
 module.exports = router;

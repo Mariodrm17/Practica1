@@ -4,7 +4,6 @@ class BasketballStore {
         this.user = null;
         this.socket = null;
         this.products = [];
-        this.cart = { items: [], total: 0 };
         this.API_BASE = window.location.origin;
         this.init();
     }
@@ -30,7 +29,6 @@ class BasketballStore {
                     this.showAuthenticatedUI();
                     this.connectToChat();
                     this.loadProducts();
-                    this.loadCart();
                 } else {
                     this.logout();
                 }
@@ -69,25 +67,27 @@ class BasketballStore {
             });
         }
 
-        // Modal events
-        this.setupModalEvents();
-    }
+        // Message input typing indicator
+        const messageInput = document.getElementById('message-input');
+        if (messageInput) {
+            let typingTimer;
+            messageInput.addEventListener('input', () => {
+                if (this.socket) {
+                    this.socket.emit('typing', {
+                        username: this.user.username,
+                        isTyping: true
+                    });
 
-    setupModalEvents() {
-        const modal = document.getElementById('product-modal');
-        const closeBtn = modal.querySelector('.close-modal');
-        const cancelBtn = modal.querySelector('.cancel-btn');
-        const addToCartBtn = document.getElementById('add-to-cart-modal-btn');
-
-        closeBtn.onclick = () => this.hideModal();
-        cancelBtn.onclick = () => this.hideModal();
-        
-        addToCartBtn.onclick = () => this.addToCartFromModal();
-
-        // Cerrar modal al hacer click fuera
-        modal.onclick = (e) => {
-            if (e.target === modal) this.hideModal();
-        };
+                    clearTimeout(typingTimer);
+                    typingTimer = setTimeout(() => {
+                        this.socket.emit('typing', {
+                            username: this.user.username,
+                            isTyping: false
+                        });
+                    }, 1000);
+                }
+            });
+        }
     }
 
     setupNavigation() {
@@ -98,6 +98,7 @@ class BasketballStore {
                 const filter = e.target.dataset.filter;
                 this.filterProducts(filter);
                 
+                // Actualizar botones activos
                 filterButtons.forEach(b => b.classList.remove('active'));
                 e.target.classList.add('active');
             });
@@ -202,7 +203,6 @@ class BasketballStore {
         document.getElementById('login-section').style.display = 'block';
         document.getElementById('register-section').style.display = 'none';
         document.getElementById('create-product-section').style.display = 'none';
-        document.getElementById('cart-section').style.display = 'none';
 
         this.showNotification('¡Sesión cerrada! 👋', 'info');
     }
@@ -215,6 +215,7 @@ class BasketballStore {
         document.getElementById('register-section').style.display = 'none';
         document.getElementById('products-section').style.display = 'block';
 
+        // Mostrar panel de admin si es administrador
         if (this.user.role === 'admin') {
             document.getElementById('admin-panel').style.display = 'block';
         } else {
@@ -222,11 +223,11 @@ class BasketballStore {
         }
 
         this.loadProducts();
-        this.loadCart();
     }
 
     async loadProducts() {
         try {
+            console.log('🔄 Cargando productos...');
             const productsList = document.getElementById('products-list');
             productsList.innerHTML = '<div class="loading">Cargando productos... 🏀</div>';
 
@@ -237,9 +238,12 @@ class BasketballStore {
             }
             
             const data = await response.json();
+            console.log('📦 Respuesta de la API:', data);
             
+            // CORRECCIÓN: Ahora los productos están en data.products
             if (data.success && Array.isArray(data.products)) {
                 this.products = data.products;
+                console.log(`✅ ${this.products.length} productos cargados`);
                 this.renderProducts(this.products);
             } else {
                 throw new Error('Formato de respuesta inválido');
@@ -253,6 +257,7 @@ class BasketballStore {
                     <h3>Error cargando productos</h3>
                     <p>${error.message}</p>
                     <button onclick="app.loadProducts()">🔄 Reintentar</button>
+                    <button onclick="app.testConnection()">🔧 Probar conexión</button>
                 </div>
             `;
         }
@@ -267,6 +272,10 @@ class BasketballStore {
                 <div class="no-products">
                     <h3>🏀 No hay productos disponibles</h3>
                     <p>No se encontraron productos en la tienda.</p>
+                    ${this.user && this.user.role === 'admin' ? 
+                        '<button onclick="showCreateProduct()">➕ Crear primer producto</button>' : 
+                        '<p>Vuelve más tarde o contacta al administrador.</p>'
+                    }
                 </div>
             `;
             return;
@@ -286,11 +295,6 @@ class BasketballStore {
                 <div class="stock ${product.stock > 0 ? 'in-stock' : 'out-of-stock'}">
                     ${product.stock > 0 ? `🏀 Stock: ${product.stock} unidades` : '❌ Agotado'}
                 </div>
-                <button onclick="app.showProductModal('${product._id}')" 
-                        class="add-to-cart-product-btn" 
-                        ${product.stock === 0 ? 'disabled' : ''}>
-                    ${product.stock === 0 ? '❌ Agotado' : '🛒 Añadir al Carrito'}
-                </button>
                 ${this.user && this.user.role === 'admin' ? `
                     <div class="admin-actions">
                         <button class="edit-btn" onclick="editProduct('${product._id}')">✏️ Editar</button>
@@ -325,6 +329,9 @@ class BasketballStore {
                 break;
             case 'shoes':
                 filteredProducts = this.products.filter(p => p.category === 'Calzado');
+                break;
+            case 'under50':
+                filteredProducts = this.products.filter(p => p.price < 50);
                 break;
             case 'in-stock':
                 filteredProducts = this.products.filter(p => p.stock > 0);
@@ -374,310 +381,50 @@ class BasketballStore {
         }
     }
 
-    // ================== CARRITO DE COMPRAS ==================
-    
-    async loadCart() {
-        if (!this.user) return;
-        
-        try {
-            const response = await fetch(`${this.API_BASE}/api/cart`, {
-                headers: {
-                    'Authorization': `Bearer ${this.token}`
-                }
+    connectToChat() {
+        this.socket = io();
+
+        this.socket.on('connect', () => {
+            console.log('Conectado al chat');
+            this.socket.emit('joinChat', {
+                username: this.user.username,
+                role: this.user.role
             });
-            
-            if (response.ok) {
-                const data = await response.json();
-                this.cart = data.cart;
-                this.updateCartUI();
-            }
-        } catch (error) {
-            console.error('Error cargando carrito:', error);
-        }
+        });
+
+        this.socket.on('newMessage', (data) => {
+            this.displayMessage(data);
+        });
+
+        this.socket.on('userJoined', (user) => {
+            this.displaySystemMessage(`🎉 ${user.username} se unió al chat`);
+        });
+
+        this.socket.on('userLeft', (user) => {
+            this.displaySystemMessage(`👋 ${user.username} abandonó el chat`);
+        });
+
+        this.socket.on('typing', (data) => {
+            this.showTypingIndicator(data);
+        });
     }
-    
-    async addToCart(productId, quantity = 1, size = null) {
-        try {
-            const response = await fetch(`${this.API_BASE}/api/cart/add`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.token}`
-                },
-                body: JSON.stringify({
-                    productId: productId,
-                    quantity: quantity,
-                    size: size
+
+    sendMessage() {
+        const input = document.getElementById('message-input');
+        const message = input.value.trim();
+
+        if (message && this.socket) {
+            this.socket.emit('sendMessage', {
+                username: this.user.username,
+                message: message,
+                timestamp: new Date().toLocaleTimeString('es-ES', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
                 })
             });
-            
-            const data = await response.json();
-            
-            if (response.ok && data.success) {
-                this.cart = data.cart;
-                this.updateCartUI();
-                this.showNotification('✅ Producto añadido al carrito', 'success');
-                return true;
-            } else {
-                this.showNotification(data.message || 'Error añadiendo al carrito', 'error');
-                return false;
-            }
-        } catch (error) {
-            console.error('Error añadiendo al carrito:', error);
-            this.showNotification('Error de conexión', 'error');
-            return false;
+            input.value = '';
         }
     }
-    
-    async removeFromCart(itemId) {
-        try {
-            const response = await fetch(`${this.API_BASE}/api/cart/remove/${itemId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${this.token}`
-                }
-            });
-            
-            const data = await response.json();
-            
-            if (response.ok && data.success) {
-                this.cart = data.cart;
-                this.updateCartUI();
-                this.showNotification('Producto eliminado del carrito', 'success');
-            } else {
-                this.showNotification(data.message || 'Error eliminando del carrito', 'error');
-            }
-        } catch (error) {
-            console.error('Error eliminando del carrito:', error);
-            this.showNotification('Error de conexión', 'error');
-        }
-    }
-    
-    async updateCartQuantity(itemId, quantity) {
-        try {
-            const response = await fetch(`${this.API_BASE}/api/cart/update/${itemId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.token}`
-                },
-                body: JSON.stringify({ quantity: quantity })
-            });
-            
-            const data = await response.json();
-            
-            if (response.ok && data.success) {
-                this.cart = data.cart;
-                this.updateCartUI();
-            } else {
-                this.showNotification(data.message || 'Error actualizando cantidad', 'error');
-            }
-        } catch (error) {
-            console.error('Error actualizando carrito:', error);
-            this.showNotification('Error de conexión', 'error');
-        }
-    }
-
-    async clearCart() {
-        if (!confirm('¿Estás seguro de que quieres vaciar el carrito?')) return;
-        
-        try {
-            const response = await fetch(`${this.API_BASE}/api/cart/clear`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${this.token}`
-                }
-            });
-            
-            const data = await response.json();
-            
-            if (response.ok && data.success) {
-                this.cart = data.cart;
-                this.updateCartUI();
-                this.showNotification('Carrito vaciado', 'success');
-            } else {
-                this.showNotification(data.message || 'Error vaciando carrito', 'error');
-            }
-        } catch (error) {
-            console.error('Error vaciando carrito:', error);
-            this.showNotification('Error de conexión', 'error');
-        }
-    }
-
-    checkout() {
-        if (this.cart.items.length === 0) {
-            this.showNotification('El carrito está vacío', 'error');
-            return;
-        }
-        this.showNotification('🚧 Función de pago en desarrollo', 'info');
-    }
-    
-    updateCartUI() {
-        const cartCount = document.getElementById('cart-count');
-        const cartItems = document.getElementById('cart-items');
-        const cartTotal = document.getElementById('cart-total');
-        
-        // Actualizar contador
-        if (cartCount) {
-            const totalItems = this.cart ? this.cart.items.reduce((sum, item) => sum + item.quantity, 0) : 0;
-            cartCount.textContent = totalItems;
-            cartCount.style.display = totalItems > 0 ? 'inline-flex' : 'none';
-        }
-        
-        // Actualizar items del carrito
-        if (cartItems && this.cart) {
-            if (this.cart.items.length === 0) {
-                cartItems.innerHTML = '<p class="empty-cart">Tu carrito está vacío</p>';
-            } else {
-                cartItems.innerHTML = this.cart.items.map(item => `
-                    <div class="cart-item">
-                        <img src="${item.product.image}" alt="${item.product.name}" class="cart-item-image">
-                        <div class="cart-item-details">
-                            <h4>${item.product.name}</h4>
-                            <p>€${item.price} x ${item.quantity}</p>
-                            ${item.size ? `<p><strong>Talla:</strong> ${item.size}</p>` : ''}
-                            <p><strong>Subtotal:</strong> €${(item.price * item.quantity).toFixed(2)}</p>
-                        </div>
-                        <div class="cart-item-actions">
-                            <button onclick="app.updateCartQuantity('${item._id}', ${item.quantity - 1})" ${item.quantity <= 1 ? 'disabled' : ''}>-</button>
-                            <span>${item.quantity}</span>
-                            <button onclick="app.updateCartQuantity('${item._id}', ${item.quantity + 1})">+</button>
-                            <button onclick="app.removeFromCart('${item._id}')" class="remove-btn">🗑️</button>
-                        </div>
-                    </div>
-                `).join('');
-            }
-        }
-        
-        // Actualizar total
-        if (cartTotal && this.cart) {
-            cartTotal.textContent = `Total: €${this.cart.total ? this.cart.total.toFixed(2) : '0.00'}`;
-        }
-    }
-
-    // ================== MODAL DE PRODUCTO ==================
-    
-    showProductModal(productId) {
-        const product = this.products.find(p => p._id === productId);
-        if (!product) return;
-        
-        const modal = document.getElementById('product-modal');
-        const sizeSelection = document.getElementById('size-selection');
-        const sizeSelect = document.getElementById('size-select');
-        
-        // Llenar datos del modal
-        document.getElementById('modal-product-name').textContent = product.name;
-        document.getElementById('modal-product-image').src = product.image;
-        document.getElementById('modal-product-image').alt = product.name;
-        document.getElementById('modal-product-description').textContent = product.description;
-        document.getElementById('modal-product-price').textContent = `€${product.price}`;
-        document.getElementById('quantity-select').value = 1;
-        document.getElementById('quantity-select').max = product.stock;
-        
-        // Manejar tallas
-        if (product.sizes && product.sizes.length > 0) {
-            sizeSelection.style.display = 'block';
-            sizeSelect.innerHTML = '<option value="">Selecciona una talla</option>' +
-                product.sizes.map(size => `<option value="${size}">${size}</option>`).join('');
-        } else {
-            sizeSelection.style.display = 'none';
-        }
-        
-        // Configurar botón
-        const addButton = document.getElementById('add-to-cart-modal-btn');
-        addButton.disabled = product.stock === 0;
-        addButton.textContent = product.stock === 0 ? '❌ Agotado' : '🛒 Añadir al Carrito';
-        addButton.onclick = () => this.addToCartFromModal(productId);
-        
-        modal.style.display = 'flex';
-    }
-    
-    hideModal() {
-        document.getElementById('product-modal').style.display = 'none';
-    }
-    
-    async addToCartFromModal(productId) {
-        const sizeSelect = document.getElementById('size-select');
-        const quantityInput = document.getElementById('quantity-select');
-        
-        const size = sizeSelect && sizeSelect.style.display !== 'none' ? sizeSelect.value : null;
-        const quantity = parseInt(quantityInput.value);
-        
-        const product = this.products.find(p => p._id === productId);
-        
-        // Validaciones
-        if (quantity < 1) {
-            this.showNotification('La cantidad debe ser al menos 1', 'error');
-            return;
-        }
-        
-        if (quantity > product.stock) {
-            this.showNotification(`Solo hay ${product.stock} unidades disponibles`, 'error');
-            return;
-        }
-        
-        if ((product.category === 'Camisetas' || product.category === 'Calzado' || product.category === 'Ropa') && !size) {
-            this.showNotification('Por favor selecciona una talla', 'error');
-            return;
-        }
-        
-        const success = await this.addToCart(productId, quantity, size);
-        if (success) {
-            this.hideModal();
-        }
-    }
-
-    // ================== CHAT PERSISTENTE ==================
-    
-    connectToChat() {
-    this.socket = io();
-
-    this.socket.on('connect', () => {
-        console.log('Conectado al chat');
-        this.socket.emit('joinChat', {
-            userId: this.user.userId, // ← Asegurar que enviamos userId
-            username: this.user.username,
-            role: this.user.role
-        });
-    });
-
-    this.socket.on('chatHistory', (messages) => {
-        const messagesContainer = document.getElementById('messages');
-        messagesContainer.innerHTML = '';
-        
-        messages.forEach(message => {
-            if (message.type === 'message') {
-                this.displayMessage({
-                    username: message.username,
-                    message: message.message,
-                    timestamp: new Date(message.createdAt).toLocaleTimeString('es-ES', { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                    })
-                });
-            } else {
-                // Mensajes del sistema
-                this.displaySystemMessage(message.message);
-            }
-        });
-    });
-
-    this.socket.on('newMessage', (data) => {
-        this.displayMessage(data);
-    });
-
-    this.socket.on('userJoined', (user) => {
-        this.displaySystemMessage(`🎉 ${user.username} se unió al chat`);
-    });
-
-    this.socket.on('typing', (data) => {
-        this.showTypingIndicator(data);
-    });
-
-    this.socket.on('messageError', (data) => {
-        this.showNotification('Error enviando mensaje', 'error');
-    });
-}
 
     displayMessage(data) {
         const messages = document.getElementById('messages');
@@ -707,23 +454,6 @@ class BasketballStore {
             indicator.textContent = `✍️ ${data.username} está escribiendo...`;
         } else {
             indicator.textContent = '';
-        }
-    }
-
-    sendMessage() {
-        const input = document.getElementById('message-input');
-        const message = input.value.trim();
-
-        if (message && this.socket) {
-            this.socket.emit('sendMessage', {
-                username: this.user.username,
-                message: message,
-                timestamp: new Date().toLocaleTimeString('es-ES', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                })
-            });
-            input.value = '';
         }
     }
 
@@ -759,17 +489,38 @@ class BasketballStore {
             }
         }, 4000);
     }
+
+    async testConnection() {
+        try {
+            console.log('🔧 Probando conexión con el servidor...');
+            
+            const tests = [
+                `${this.API_BASE}/api/health`,
+                `${this.API_BASE}/api/products`,
+                `${this.API_BASE}/api/debug/database`
+            ];
+            
+            for (const url of tests) {
+                const response = await fetch(url);
+                const data = await response.json();
+                console.log(`📡 ${url}:`, data);
+            }
+            
+            this.showNotification('✅ Pruebas de conexión completadas - Revisa la consola', 'success');
+        } catch (error) {
+            console.error('❌ Error en prueba de conexión:', error);
+            this.showNotification('❌ Error en prueba de conexión', 'error');
+        }
+    }
 }
 
-// ================== FUNCIONES GLOBALES ==================
-
+// Funciones globales para los botones
 function showLogin() {
     document.getElementById('login-section').style.display = 'block';
     document.getElementById('register-section').style.display = 'none';
     document.getElementById('products-section').style.display = 'none';
     document.getElementById('chat-section').style.display = 'none';
     document.getElementById('create-product-section').style.display = 'none';
-    document.getElementById('cart-section').style.display = 'none';
 }
 
 function showRegister() {
@@ -778,7 +529,6 @@ function showRegister() {
     document.getElementById('products-section').style.display = 'none';
     document.getElementById('chat-section').style.display = 'none';
     document.getElementById('create-product-section').style.display = 'none';
-    document.getElementById('cart-section').style.display = 'none';
 }
 
 function showProducts() {
@@ -787,21 +537,7 @@ function showProducts() {
     document.getElementById('products-section').style.display = 'block';
     document.getElementById('chat-section').style.display = 'none';
     document.getElementById('create-product-section').style.display = 'none';
-    document.getElementById('cart-section').style.display = 'none';
     app.loadProducts();
-}
-
-function showCart() {
-    document.getElementById('login-section').style.display = 'none';
-    document.getElementById('register-section').style.display = 'none';
-    document.getElementById('products-section').style.display = 'none';
-    document.getElementById('chat-section').style.display = 'none';
-    document.getElementById('create-product-section').style.display = 'none';
-    document.getElementById('cart-section').style.display = 'block';
-    
-    if (app.user) {
-        app.loadCart();
-    }
 }
 
 function showChat() {
@@ -810,7 +546,6 @@ function showChat() {
     document.getElementById('products-section').style.display = 'none';
     document.getElementById('chat-section').style.display = 'block';
     document.getElementById('create-product-section').style.display = 'none';
-    document.getElementById('cart-section').style.display = 'none';
     
     setTimeout(() => {
         const messages = document.getElementById('messages');
@@ -826,7 +561,6 @@ function showCreateProduct() {
     document.getElementById('products-section').style.display = 'none';
     document.getElementById('chat-section').style.display = 'none';
     document.getElementById('create-product-section').style.display = 'block';
-    document.getElementById('cart-section').style.display = 'none';
 }
 
 function logout() {
@@ -896,8 +630,6 @@ async function deleteProduct(productId) {
     }
 }
 
-// ================== INICIALIZACIÓN ==================
-
 // Inicializar la aplicación cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new BasketballStore();
@@ -956,11 +688,29 @@ style.textContent = `
         border-radius: 8px;
     }
     
-    .empty-cart {
-        text-align: center;
-        padding: 3rem;
-        color: #666;
-        font-size: 1.1rem;
+    .filter-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .filter-btn {
+        padding: 0.5rem 1rem;
+        background: #E5E7EB;
+        border: none;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .filter-btn:hover, .filter-btn.active {
+        background: #3B82F6;
+        color: white;
+    }
+    
+    .both-badge {
+        background: linear-gradient(135deg, #1D428A 0%, #FF6B00 100%);
     }
     
     .in-stock {

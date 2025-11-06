@@ -11,151 +11,168 @@
         <header>
             <div class="logo">
                 <h1>🏀 <span>Basket</span>Store</h1>
+                <p>Tu tienda oficial de baloncesto NBA & ACB</p>
             </div>
             <nav>
-                <div id="auth-buttons">
-                    <button onclick="showLogin()">Login</button>
-                    <button onclick="showRegister()">Registro</button>
+                <div id="auth-buttons" class="auth-section">
+                    <button class="nav-btn" onclick="showLogin()">🚪 Login</button>
+                    <button class="nav-btn" onclick="showRegister()">📝 Registro</button>
                 </div>
-                <div id="user-menu" style="display: none;">
-                    <span id="username-display"></span>
-                    <button onclick="showProducts()">Productos</button>
-                    <button onclick="showCart()">
-                        🛒 Carrito 
-                        <span id="cart-count" style="display: none;">0</span>
-                    </button>
-                    <button onclick="showChat()">💬 Chat</button>
-                    <button onclick="logout()">Logout</button>
+                <div id="user-menu" class="auth-section" style="display: none;">
+                    <span id="username-display" class="user-info"></span>
+                    <button class="nav-btn" onclick="showProducts()">🛍️ Productos</button>
+                    <button class="nav-btn" onclick="showChat()">💬 Chat</button>
+                    <button class="nav-btn admin-btn" onclick="showCreateProduct()" id="create-product-btn" style="display: none;">➕ Producto</button>
+                    <button class="nav-btn logout-btn" onclick="logout()">🚪 Salir</button>
                 </div>
             </nav>
         </header>
 
         <main>
-            <!-- Formulario de Login -->
+            <!-- Sección de Login -->
             <div id="login-section" class="section">
-                <h2>Login</h2>
-                <form id="login-form">
-                    <input type="email" placeholder="Email" required>
-                    <input type="password" placeholder="Password" required>
-                    <button type="submit">Entrar</button>
+                <h2>🚪 Iniciar Sesión</h2>
+                <form id="login-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="login-email">📧 Email:</label>
+                        <input type="email" id="login-email" placeholder="tu@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">🔒 Contraseña:</label>
+                        <input type="password" id="login-password" placeholder="Tu contraseña" required>
+                    </div>
+                    <button type="submit" class="submit-btn">🎯 Entrar</button>
                 </form>
+                <p class="auth-switch">¿No tienes cuenta? <a href="#" onclick="showRegister()">Regístrate aquí</a></p>
             </div>
 
-            <!-- Formulario de Registro -->
+            <!-- Sección de Registro -->
             <div id="register-section" class="section" style="display: none;">
-                <h2>Registro</h2>
-                <form id="register-form">
-                    <input type="text" placeholder="Username" required>
-                    <input type="email" placeholder="Email" required>
-                    <input type="password" placeholder="Password" required>
-                    <button type="submit">Registrarse</button>
+                <h2>📝 Crear Cuenta</h2>
+                <form id="register-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="register-username">👤 Usuario:</label>
+                        <input type="text" id="register-username" placeholder="Tu nombre de usuario" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-email">📧 Email:</label>
+                        <input type="email" id="register-email" placeholder="tu@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password">🔒 Contraseña:</label>
+                        <input type="password" id="register-password" placeholder="Mínimo 6 caracteres" required minlength="6">
+                    </div>
+                    <button type="submit" class="submit-btn">🚀 Registrarse</button>
                 </form>
+                <p class="auth-switch">¿Ya tienes cuenta? <a href="#" onclick="showLogin()">Inicia sesión aquí</a></p>
             </div>
 
-            <!-- Lista de Productos -->
+            <!-- Sección de Productos -->
             <div id="products-section" class="section" style="display: none;">
-                <h2>🏀 Productos de Baloncesto</h2>
-                
-                <!-- Filtros -->
-                <div class="filter-buttons">
-                    <button class="filter-btn active" data-filter="all">Todos</button>
-                    <button class="filter-btn" data-filter="nba">NBA</button>
-                    <button class="filter-btn" data-filter="acb">ACB</button>
-                    <button class="filter-btn" data-filter="balls">Balones</button>
-                    <button class="filter-btn" data-filter="jerseys">Camisetas</button>
-                    <button class="filter-btn" data-filter="shoes">Calzado</button>
-                    <button class="filter-btn" data-filter="in-stock">En Stock</button>
-                </div>
-
-                <div id="admin-panel" style="display: none;">
-                    <h3>Panel de Administrador</h3>
-                    <button onclick="showCreateProduct()">➕ Crear Producto</button>
-                </div>
-                <div id="products-list"></div>
-            </div>
-
-            <!-- CARRITO DE COMPRAS -->
-            <div id="cart-section" class="section" style="display: none;">
-                <h2>🛒 Tu Carrito de Compras</h2>
-                <div id="cart-content">
-                    <div id="cart-items"></div>
-                    <div id="cart-total" class="cart-total"></div>
-                    <div class="cart-actions">
-                        <button onclick="app.clearCart()" class="clear-cart-btn">🗑️ Vaciar Carrito</button>
-                        <button onclick="app.checkout()" class="checkout-btn">💰 Proceder al Pago</button>
+                <div class="section-header">
+                    <h2>🛍️ Nuestros Productos</h2>
+                    <div id="admin-panel" style="display: none;">
+                        <button class="admin-btn" onclick="showCreateProduct()">➕ Nuevo Producto</button>
                     </div>
                 </div>
+
+                <!-- Filtros -->
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all">🏀 Todos</button>
+                    <button class="filter-btn" data-filter="nba">⭐ NBA</button>
+                    <button class="filter-btn" data-filter="acb">🔥 ACB</button>
+                    <button class="filter-btn" data-filter="balls">🏀 Balones</button>
+                    <button class="filter-btn" data-filter="jerseys">👕 Camisetas</button>
+                    <button class="filter-btn" data-filter="shoes">👟 Calzado</button>
+                    <button class="filter-btn" data-filter="in-stock">✅ En Stock</button>
+                </div>
+
+                <div id="products-list" class="products-grid">
+                    <!-- Los productos se cargarán aquí dinámicamente -->
+                </div>
             </div>
 
-            <!-- Chat -->
+            <!-- Sección de Crear Producto (Solo Admin) -->
+            <div id="create-product-section" class="section" style="display: none;">
+                <h2>➕ Crear Nuevo Producto</h2>
+                <form id="create-product-form" class="product-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="product-name">🏷️ Nombre:</label>
+                            <input type="text" id="product-name" name="name" placeholder="Nombre del producto" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="product-price">💰 Precio (€):</label>
+                            <input type="number" id="product-price" name="price" step="0.01" min="0" placeholder="0.00" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="product-description">📝 Descripción:</label>
+                        <textarea id="product-description" name="description" placeholder="Descripción del producto..." required></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="product-category">📂 Categoría:</label>
+                            <select id="product-category" name="category" required>
+                                <option value="">Selecciona categoría</option>
+                                <option value="Balones">🏀 Balones</option>
+                                <option value="Camisetas">👕 Camisetas</option>
+                                <option value="Calzado">👟 Calzado</option>
+                                <option value="Equipamiento">⚙️ Equipamiento</option>
+                                <option value="Accesorios">🎒 Accesorios</option>
+                                <option value="Ropa">👖 Ropa</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="product-league">🏆 Liga:</label>
+                            <select id="product-league" name="league" required>
+                                <option value="">Selecciona liga</option>
+                                <option value="NBA">⭐ NBA</option>
+                                <option value="ACB">🔥 ACB</option>
+                                <option value="Ambas">🌍 Ambas</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="product-stock">📦 Stock:</label>
+                            <input type="number" id="product-stock" name="stock" min="0" placeholder="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="product-image">🖼️ URL Imagen:</label>
+                            <input type="url" id="product-image" name="image" placeholder="https://...">
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="submit-btn">🎯 Crear Producto</button>
+                        <button type="button" class="cancel-btn" onclick="showProducts()">❌ Cancelar</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Sección de Chat -->
             <div id="chat-section" class="section" style="display: none;">
                 <h2>💬 Chat en Tiempo Real</h2>
                 <div id="chat-container">
-                    <div id="messages"></div>
-                    <div id="typing-indicator"></div>
-                    <form id="message-form">
+                    <div id="messages" class="messages-container">
+                        <!-- Los mensajes aparecerán aquí -->
+                    </div>
+                    <div id="typing-indicator" class="typing-indicator"></div>
+                    <form id="message-form" class="message-form">
                         <input type="text" id="message-input" placeholder="Escribe tu mensaje..." required>
-                        <button type="submit">Enviar</button>
+                        <button type="submit">➤</button>
                     </form>
                 </div>
             </div>
-
-            <!-- Crear Producto (Admin) -->
-            <div id="create-product-section" class="section" style="display: none;">
-                <h2>➕ Crear Nuevo Producto</h2>
-                <form id="create-product-form">
-                    <input type="text" name="name" placeholder="Nombre del producto" required>
-                    <textarea name="description" placeholder="Descripción" required></textarea>
-                    <input type="number" name="price" placeholder="Precio" step="0.01" required>
-                    <select name="category" required>
-                        <option value="">Selecciona categoría</option>
-                        <option value="Balones">Balones</option>
-                        <option value="Camisetas">Camisetas</option>
-                        <option value="Calzado">Calzado</option>
-                        <option value="Equipamiento">Equipamiento</option>
-                        <option value="Accesorios">Accesorios</option>
-                        <option value="Ropa">Ropa</option>
-                    </select>
-                    <select name="league" required>
-                        <option value="">Selecciona liga</option>
-                        <option value="NBA">NBA</option>
-                        <option value="ACB">ACB</option>
-                        <option value="Ambas">Ambas</option>
-                    </select>
-                    <input type="number" name="stock" placeholder="Stock" required>
-                    <input type="text" name="image" placeholder="URL de imagen (opcional)">
-                    <button type="submit">Crear Producto</button>
-                </form>
-            </div>
         </main>
-    </div>
 
-    <!-- MODAL PARA AÑADIR AL CARRITO -->
-    <div id="product-modal" class="product-modal" style="display: none;">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h2 id="modal-product-name"></h2>
-            <img id="modal-product-image" src="" alt="">
-            <p id="modal-product-description" class="description"></p>
-            <div id="modal-product-price" class="price"></div>
-            
-            <div id="size-selection" class="size-selection" style="display: none;">
-                <label for="size-select">Selecciona talla:</label>
-                <select id="size-select">
-                    <option value="">Selecciona una talla</option>
-                </select>
-            </div>
-            
-            <div class="quantity-selection">
-                <label for="quantity-select">Cantidad:</label>
-                <input type="number" id="quantity-select" min="1" value="1">
-            </div>
-            
-            <div class="modal-actions">
-                <button id="add-to-cart-modal-btn" class="add-to-cart-btn">🛒 Añadir al Carrito</button>
-                <button class="cancel-btn">Cancelar</button>
-            </div>
-        </div>
+        <footer>
+            <p>🏀 BasketStore - Tu tienda oficial de baloncesto © 2024</p>
+        </footer>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
