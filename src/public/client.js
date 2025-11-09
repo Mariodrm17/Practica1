@@ -97,7 +97,7 @@ class BasketballStore {
             btn.addEventListener('click', (e) => {
                 const filter = e.target.dataset.filter;
                 this.filterProducts(filter);
-                
+
                 // Actualizar botones activos
                 filterButtons.forEach(b => b.classList.remove('active'));
                 e.target.classList.add('active');
@@ -109,7 +109,7 @@ class BasketballStore {
         const form = document.getElementById('login-form');
         const inputs = form.querySelectorAll('input');
         const submitBtn = form.querySelector('button');
-        
+
         submitBtn.textContent = 'Entrando...';
         submitBtn.disabled = true;
 
@@ -150,8 +150,9 @@ class BasketballStore {
     async register() {
         const form = document.getElementById('register-form');
         const inputs = form.querySelectorAll('input');
+        const roleSelect = document.getElementById('register-role');
         const submitBtn = form.querySelector('button');
-        
+
         submitBtn.textContent = 'Registrando...';
         submitBtn.disabled = true;
 
@@ -165,10 +166,11 @@ class BasketballStore {
                     username: inputs[0].value,
                     email: inputs[1].value,
                     password: inputs[2].value,
-                    role: inputs[3].value
+                    role: roleSelect.value
                 })
             });
 
+            role: roleSelect.value
             const data = await response.json();
 
             if (response.ok) {
@@ -191,7 +193,7 @@ class BasketballStore {
         this.token = null;
         this.user = null;
         localStorage.removeItem('token');
-        
+
         if (this.socket) {
             this.socket.disconnect();
             this.socket = null;
@@ -233,14 +235,14 @@ class BasketballStore {
             productsList.innerHTML = '<div class="loading">Cargando productos... 🏀</div>';
 
             const response = await fetch(`${this.API_BASE}/api/products`);
-            
+
             if (!response.ok) {
                 throw new Error(`Error HTTP: ${response.status}`);
             }
-            
+
             const data = await response.json();
             console.log('📦 Respuesta de la API:', data);
-            
+
             // CORRECCIÓN: Ahora los productos están en data.products
             if (data.success && Array.isArray(data.products)) {
                 this.products = data.products;
@@ -249,7 +251,7 @@ class BasketballStore {
             } else {
                 throw new Error('Formato de respuesta inválido');
             }
-            
+
         } catch (error) {
             console.error('❌ Error cargando productos:', error);
             const productsList = document.getElementById('products-list');
@@ -273,10 +275,10 @@ class BasketballStore {
                 <div class="no-products">
                     <h3>🏀 No hay productos disponibles</h3>
                     <p>No se encontraron productos en la tienda.</p>
-                    ${this.user && this.user.role === 'admin' ? 
-                        '<button onclick="showCreateProduct()">➕ Crear primer producto</button>' : 
-                        '<p>Vuelve más tarde o contacta al administrador.</p>'
-                    }
+                    ${this.user && this.user.role === 'admin' ?
+                    '<button onclick="showCreateProduct()">➕ Crear primer producto</button>' :
+                    '<p>Vuelve más tarde o contacta al administrador.</p>'
+                }
                 </div>
             `;
             return;
@@ -309,12 +311,12 @@ class BasketballStore {
 
     filterProducts(filter) {
         let filteredProducts = this.products;
-        
+
         if (!filteredProducts || !Array.isArray(filteredProducts)) {
             console.error('No hay productos para filtrar');
             return;
         }
-        
+
         switch (filter) {
             case 'nba':
                 filteredProducts = this.products.filter(p => p.league === 'NBA');
@@ -347,7 +349,7 @@ class BasketballStore {
     async createProduct() {
         const form = document.getElementById('create-product-form');
         const formData = new FormData(form);
-        
+
         try {
             const response = await fetch(`${this.API_BASE}/api/products`, {
                 method: 'POST',
@@ -418,9 +420,9 @@ class BasketballStore {
             this.socket.emit('sendMessage', {
                 username: this.user.username,
                 message: message,
-                timestamp: new Date().toLocaleTimeString('es-ES', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
+                timestamp: new Date().toLocaleTimeString('es-ES', {
+                    hour: '2-digit',
+                    minute: '2-digit'
                 })
             });
             input.value = '';
@@ -465,7 +467,7 @@ class BasketballStore {
             <span>${message}</span>
             <button onclick="this.parentElement.remove()">×</button>
         `;
-        
+
         notification.style.cssText = `
             position: fixed;
             top: 20px;
@@ -494,19 +496,19 @@ class BasketballStore {
     async testConnection() {
         try {
             console.log('🔧 Probando conexión con el servidor...');
-            
+
             const tests = [
                 `${this.API_BASE}/api/health`,
                 `${this.API_BASE}/api/products`,
                 `${this.API_BASE}/api/debug/database`
             ];
-            
+
             for (const url of tests) {
                 const response = await fetch(url);
                 const data = await response.json();
                 console.log(`📡 ${url}:`, data);
             }
-            
+
             this.showNotification('✅ Pruebas de conexión completadas - Revisa la consola', 'success');
         } catch (error) {
             console.error('❌ Error en prueba de conexión:', error);
@@ -547,7 +549,7 @@ function showChat() {
     document.getElementById('products-section').style.display = 'none';
     document.getElementById('chat-section').style.display = 'block';
     document.getElementById('create-product-section').style.display = 'none';
-    
+
     setTimeout(() => {
         const messages = document.getElementById('messages');
         if (messages) {
