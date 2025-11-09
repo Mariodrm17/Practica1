@@ -1,14 +1,14 @@
 const express = require('express');
+
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { authenticateJWT } = require('../middleware/authenticateJWT');
 
-const router = express.Router();
 
 // Registro de usuario
 router.post('/register', async (req, res) => {
     try {
-        const { username, email, password } = req.body;
+        const { username, email, password, role } = req.body;
 
         // Validaciones básicas
         if (!username || !email || !password) {
@@ -41,7 +41,8 @@ router.post('/register', async (req, res) => {
         const user = new User({
             username,
             email,
-            password
+            password,
+            role
         });
 
         await user.save();

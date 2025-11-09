@@ -164,7 +164,8 @@ class BasketballStore {
                 body: JSON.stringify({
                     username: inputs[0].value,
                     email: inputs[1].value,
-                    password: inputs[2].value
+                    password: inputs[2].value,
+                    role: inputs[3].value
                 })
             });
 
