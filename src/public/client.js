@@ -148,46 +148,49 @@ class BasketballStore {
     }
 
     async register() {
-        const form = document.getElementById('register-form');
-        const inputs = form.querySelectorAll('input');
-        const roleSelect = document.getElementById('register-role');
-        const submitBtn = form.querySelector('button');
+    const form = document.getElementById('register-form');
+    const submitBtn = form.querySelector('button');
+    
+    // Obtener valores directamente del formulario
+    const username = document.getElementById('register-username').value;
+    const email = document.getElementById('register-email').value;
+    const password = document.getElementById('register-password').value;
+    const role = document.getElementById('role').value;
+    
+    submitBtn.textContent = 'Registrando...';
+    submitBtn.disabled = true;
 
-        submitBtn.textContent = 'Registrando...';
-        submitBtn.disabled = true;
+    try {
+        const response = await fetch(`${this.API_BASE}/api/auth/register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                username: username,
+                email: email,
+                password: password,
+                role: role
+            })
+        });
 
-        try {
-            const response = await fetch(`${this.API_BASE}/api/auth/register`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    username: inputs[0].value,
-                    email: inputs[1].value,
-                    password: inputs[2].value,
-                    role: roleSelect.value
-                })
-            });
+        const data = await response.json();
 
-            role: roleSelect.value
-            const data = await response.json();
-
-            if (response.ok) {
-                this.showNotification('¡Registro exitoso! Por favor inicia sesión.', 'success');
-                showLogin();
-                form.reset();
-            } else {
-                this.showNotification(data.message, 'error');
-            }
-        } catch (error) {
-            console.error('Error en registro:', error);
-            this.showNotification('Error de conexión', 'error');
-        } finally {
-            submitBtn.textContent = 'Registrarse';
-            submitBtn.disabled = false;
+        if (response.ok) {
+            this.showNotification('¡Registro exitoso! Por favor inicia sesión.', 'success');
+            showLogin();
+            form.reset();
+        } else {
+            this.showNotification(data.message, 'error');
         }
+    } catch (error) {
+        console.error('Error en registro:', error);
+        this.showNotification('Error de conexión', 'error');
+    } finally {
+        submitBtn.textContent = 'Registrarse';
+        submitBtn.disabled = false;
     }
+}
 
     logout() {
         this.token = null;
